@@ -14,14 +14,22 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 public class ApiClient {
     private static final String TAG = "YoupiApiClient";
     private static final String PREFS_NAME = "youpi_gateway_prefs";
+    // Only Cloudflare Quick Tunnel hosts are accepted from discovery, so a bad or tampered
+    // discovery document cannot point the observer at an arbitrary server.
+    private static final Pattern DISCOVERED_URL_PATTERN = Pattern.compile("^https://[a-z0-9-]+\\.trycloudflare\\.com$");
+    private static final long DISCOVERY_MIN_INTERVAL_MS = 30_000;
+    private static long lastDiscoveryAt = 0;
     private final SharedPreferences prefs;
     private final Context context;
+    // HTTP status of the last postJson call; -1 when the request did not complete.
+    private int lastStatusCode = 0;
 
     public ApiClient(Context context) {
         this.context = context.getApplicationContext();
@@ -86,8 +94,6 @@ public class ApiClient {
 
         String deviceId = prefs.getString("device_id", null);
         String signingKey = prefs.getString("signing_key", null);
-        String baseUrl = getBaseUrl();
-        String endpoint = baseUrl + "/api/v1/observers/sms";
 
         try {
             String tsStr = String.valueOf(timestamp > 0 ? timestamp : System.currentTimeMillis());
@@ -101,7 +107,7 @@ public class ApiClient {
             String sigPayload = bodyString + ":" + tsStr;
             String signature = calculateHmacSha256(sigPayload, signingKey);
 
-            String response = postJson(endpoint, bodyString, deviceId, tsStr, signature);
+            String response = postToGateway("/api/v1/observers/sms", bodyString, deviceId, tsStr, signature);
             Log.i(TAG, "SMS dispatched to YouPI Gateway: " + (response != null ? "OK" : "FAILED"));
             return response != null;
         } catch (Exception e) {
@@ -114,8 +120,6 @@ public class ApiClient {
         if (!isPaired()) return false;
 
         String deviceId = prefs.getString("device_id", null);
-        String baseUrl = getBaseUrl();
-        String endpoint = baseUrl + "/api/v1/pollers/android/heartbeat";
 
         try {
             JSONObject json = new JSONObject();
@@ -124,7 +128,8 @@ public class ApiClient {
             json.put("batteryPercent", 100);
             json.put("isCharging", true);
 
-            String response = postJson(endpoint, json.toString(), deviceId, null, null);
+            // Runs every ~60s, so it doubles as the periodic check that follows a moved tunnel.
+            String response = postToGateway("/api/v1/pollers/android/heartbeat", json.toString(), deviceId, null, null);
             return response != null;
         } catch (Exception e) {
             Log.e(TAG, "Heartbeat error: " + e.getMessage());
@@ -137,8 +142,6 @@ public class ApiClient {
 
         String deviceId = prefs.getString("device_id", null);
         String signingKey = prefs.getString("signing_key", null);
-        String baseUrl = getBaseUrl();
-        String endpoint = baseUrl + "/api/v1/pollers/android/events";
 
         try {
             String tsStr = String.valueOf(System.currentTimeMillis());
@@ -162,7 +165,7 @@ public class ApiClient {
             String sigPayload = bodyString + ":" + tsStr;
             String signature = calculateHmacSha256(sigPayload, signingKey);
 
-            String response = postJson(endpoint, bodyString, deviceId, tsStr, signature);
+            String response = postToGateway("/api/v1/pollers/android/events", bodyString, deviceId, tsStr, signature);
             return response != null;
         } catch (Exception e) {
             Log.e(TAG, "sendObservation error: " + e.getMessage());
@@ -176,6 +179,87 @@ public class ApiClient {
 
     public void unpair() {
         prefs.edit().remove("device_id").remove("signing_key").apply();
+    }
+
+    /**
+     * POSTs to the paired gateway. If the gateway is unreachable (the Quick Tunnel moved),
+     * looks up the current URL via discovery and retries once. The signature covers the body
+     * and timestamp only, not the URL, so the same signed request is valid at the new address.
+     */
+    private String postToGateway(String path, String jsonBody, String deviceId, String timestamp, String signature) {
+        String response = postJson(getBaseUrl() + path, jsonBody, deviceId, timestamp, signature);
+        if (response == null && isGatewayUnreachable(lastStatusCode) && refreshBaseUrlFromDiscovery()) {
+            response = postJson(getBaseUrl() + path, jsonBody, deviceId, timestamp, signature);
+        }
+        return response;
+    }
+
+    private static boolean isGatewayUnreachable(int code) {
+        // -1: DNS/connect/timeout failure. 404/502/503/504/530: what Cloudflare returns for a
+        // tunnel hostname that no longer has a live connector behind it.
+        return code == -1 || code == 404 || code == 502 || code == 503 || code == 504 || code == 530;
+    }
+
+    /**
+     * Reads the live gateway URL from the discovery document (Firestore REST format, written by
+     * the gateway host's tunnel sync) and stores it as the base URL.
+     * @return true if a new, valid URL was stored.
+     */
+    public synchronized boolean refreshBaseUrlFromDiscovery() {
+        String discoveryUrl = BuildConfig.GATEWAY_DISCOVERY_URL;
+        if (discoveryUrl == null || discoveryUrl.isEmpty()) return false;
+
+        long now = System.currentTimeMillis();
+        if (now - lastDiscoveryAt < DISCOVERY_MIN_INTERVAL_MS) return false;
+        lastDiscoveryAt = now;
+
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new URL(discoveryUrl).openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(10000);
+            if (conn.getResponseCode() != 200) {
+                Log.w(TAG, "Gateway discovery returned HTTP " + conn.getResponseCode());
+                return false;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    sb.append(line);
+                }
+            }
+
+            JSONObject fields = new JSONObject(sb.toString()).optJSONObject("fields");
+            if (fields == null) return false;
+            String status = fields.optJSONObject("status") != null ? fields.getJSONObject("status").optString("stringValue", "") : "";
+            String hostUrl = fields.optJSONObject("hostUrl") != null ? fields.getJSONObject("hostUrl").optString("stringValue", "") : "";
+            hostUrl = hostUrl.replaceAll("/+$", "");
+
+            if (!"online".equals(status)) {
+                Log.w(TAG, "Gateway discovery: gateway is " + status + ", keeping current URL");
+                return false;
+            }
+            if (!DISCOVERED_URL_PATTERN.matcher(hostUrl).matches()) {
+                Log.w(TAG, "Gateway discovery: rejected URL " + hostUrl);
+                return false;
+            }
+            if (hostUrl.equals(getBaseUrl())) return false;
+
+            prefs.edit().putString("base_url", hostUrl).apply();
+            Log.i(TAG, "Gateway discovery: base URL updated to " + hostUrl);
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Gateway discovery failed: " + e.getMessage());
+            return false;
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
     }
 
     private String postJson(String urlString, String jsonBody, String deviceId, String timestamp, String signature) {
@@ -206,6 +290,7 @@ public class ApiClient {
             }
 
             int code = conn.getResponseCode();
+            lastStatusCode = code;
             InputStream is = (code >= 200 && code < 300) ? conn.getInputStream() : conn.getErrorStream();
             if (is == null) return null;
 
@@ -219,6 +304,7 @@ public class ApiClient {
 
             return (code >= 200 && code < 300) ? sb.toString() : null;
         } catch (Exception e) {
+            lastStatusCode = -1;
             Log.e(TAG, "postJson to " + urlString + " failed: " + e.getMessage());
             return null;
         } finally {

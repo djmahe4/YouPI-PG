@@ -13,6 +13,17 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
+
+        // Optional gateway discovery for Cloudflare Quick Tunnels, whose URL changes on every
+        // restart. Set to the Firestore REST URL of the document holding the live tunnel, e.g.
+        //   ./gradlew assembleDebug -PgatewayDiscoveryUrl=https://firestore.googleapis.com/v1/projects/<id>/databases/(default)/documents/config/gateway
+        // Empty (default) disables discovery: the app keeps the URL entered at pairing.
+        val discoveryUrl = (project.findProperty("gatewayDiscoveryUrl") as String?) ?: ""
+        buildConfigField("String", "GATEWAY_DISCOVERY_URL", "\"$discoveryUrl\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
