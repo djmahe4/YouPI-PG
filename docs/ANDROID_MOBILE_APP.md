@@ -118,6 +118,40 @@ To ensure Android OEMs (Xiaomi MIUI, Samsung OneUI, OnePlus OxygenOS, Realme/Opp
 > The preferred fix is to terminate TLS in front of the gateway (a Cloudflare Tunnel or
 > a reverse proxy with a valid certificate) and pair over `https://`.
 
+### Optional: Follow a Moving Quick Tunnel (Gateway Discovery)
+
+A Cloudflare **Quick Tunnel** (`https://<random>.trycloudflare.com`) gets a new URL every time
+it restarts. The observer stores the URL entered at pairing, so after a restart its posts go to
+a dead host and payments stop being confirmed.
+
+Builds with gateway discovery follow the tunnel automatically. Point the build at a public
+JSON document holding the current tunnel URL, in Firestore REST format:
+
+```bash
+./gradlew assembleDebug \
+  -PgatewayDiscoveryUrl='https://firestore.googleapis.com/v1/projects/<project-id>/databases/(default)/documents/config/gateway'
+```
+
+The document must contain the string fields `hostUrl` (the tunnel URL) and `status`
+(`online` when the tunnel is up). Whatever runs the tunnel on the gateway host keeps it
+current; the reader needs public read access to that one document only.
+
+Behaviour:
+- When a post to the gateway fails to connect, or Cloudflare answers `404`/`502`/`503`/`504`/`530`,
+  the app fetches the document, and if `status` is `online` stores `hostUrl` as the new base URL
+  and retries once.
+- The heartbeat runs about every 60 seconds, so the app notices a moved tunnel within a minute
+  even when no payment is in flight.
+- Only URLs matching `^https://[a-z0-9-]+\.trycloudflare\.com$` are accepted, so a bad or tampered
+  document cannot redirect the observer to an arbitrary server.
+- Lookups are rate-limited to one per 30 seconds.
+- No re-pairing is needed: the device ID and signing key live in the gateway's database and are
+  not tied to the URL. Request signatures cover the body and timestamp only, so a signed request
+  is valid at the new address.
+
+Without `-PgatewayDiscoveryUrl` (the default) discovery is off and the app behaves as before.
+For a fixed address (a named Cloudflare Tunnel on your own domain) discovery is not needed.
+
 ---
 
 ## 5. Testing with ADB Notifications (Simulation on Real Phone)
