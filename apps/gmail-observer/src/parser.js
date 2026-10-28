@@ -11,7 +11,10 @@ export const AUTHORIZED_BANK_EMAIL_DOMAINS = [
   'icicibank.com',
   'sbi.co.in',
   'axisbank.com',
-  'kotak.com'
+  'kotak.com',
+  // FamPay / FamApp (UPI ID @fam). famapp.in publishes DMARC p=reject, so Gmail refuses mail
+  // forged as this domain. Must match KNOWN_BANK_DOMAINS in packages/core/src/verification-pipeline.js.
+  'famapp.in'
 ];
 
 /**
