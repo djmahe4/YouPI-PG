@@ -399,7 +399,11 @@ export class PaymentVerificationPipeline {
         'canarabank.com',
         'unionbankofindia.co.in',
         'federalbank.co.in',
-        'idbibank.com'
+        'idbibank.com',
+        // FamPay / FamApp (UPI ID @fam): "You received ₹X in your FamX account" alerts from
+        // no-reply@famapp.in carry the amount and a 12-digit UTR. famapp.in publishes DMARC
+        // p=reject, so Gmail refuses mail forged as this domain before it reaches the inbox.
+        'famapp.in'
       ]);
       const isBankDomain =
         emailDomain.endsWith('.bank.in') ||
