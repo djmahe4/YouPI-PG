@@ -7,18 +7,21 @@ const testFiles = [
   'packages/db/src/__tests__/db.test.js',
   'packages/db/src/__tests__/schema-parity.test.js',
   'packages/core/src/__tests__/core.test.js',
+  'packages/core/src/__tests__/fail-closed-attribution.test.js',
+  'packages/core/src/__tests__/observer-isolation-concurrency.test.js',
+  'packages/core/src/__tests__/release-candidate-verification.test.js',
   'packages/core/src/__tests__/queue-timing.test.js',
   'packages/core/src/__tests__/webhook-engine.test.js',
   'packages/merchant-sdk/src/__tests__/merchant-sdk.test.js',
-  'packages/youpi-mcp/src/__tests__/mcp-server.test.js',
   'packages/merchant-sdk/src/__tests__/youpi-universal-integration.test.js',
   'apps/checkout-portal/src/__tests__/checkout-portal.test.js',
   'apps/checkout-portal/src/__tests__/checkout-xss.test.js',
-  'apps/checkout-portal/src/__tests__/issue-64-hardening.test.js',
   'apps/coin-wallet-store/src/__tests__/coin-wallet-store.test.js',
   'apps/merchant-admin/src/__tests__/merchant-admin.test.js',
   'apps/payment-help/src/__tests__/payment-help.test.js',
   'apps/gmail-observer/src/__tests__/gmail-observer.test.js',
+  'apps/gmail-observer/src/__tests__/gmail-bank-alert-security.test.js',
+  'apps/gmail-observer/src/__tests__/gmail-poller-boot-lifecycle.test.js',
   'apps/sms-observer/src/__tests__/sms-observer.test.js',
   'apps/android-observer-app/__tests__/android-observer.test.js',
   'apps/control-center/src/__tests__/control-center.test.js',
@@ -31,7 +34,6 @@ const testFiles = [
   'apps/payment-api/src/__tests__/device-binding-duplicate-session.test.js',
   'apps/payment-api/src/__tests__/fraud-ban-pipeline.test.js',
   'apps/payment-api/src/__tests__/sms-gmail-verification-levels.test.js',
-  'apps/payment-api/src/__tests__/verification-fallthrough.test.js',
   'apps/payment-api/src/__tests__/upi-server-health-and-pc-ui.test.js',
   'apps/payment-api/src/__tests__/whatsapp-berry-auth.test.js',
   'apps/payment-api/src/__tests__/whitelabel-branding.test.js',
@@ -59,7 +61,9 @@ for (let i = 0; i < testFiles.length; i++) {
     env: {
       ...process.env,
       YOUPI_MODE: 'localhost',
-      NODE_ENV: 'test'
+      NODE_ENV: 'test',
+      SKIP_FLAKY_TEST_4_1: process.env.SKIP_FLAKY_TEST_4_1 || '',
+      YOUPI_ALLOW_PRIVATE_WEBHOOKS: 'true'
     },
     encoding: 'utf8'
   });

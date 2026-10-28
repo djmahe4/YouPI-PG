@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { startCheckoutServer } from '../index.js';
 import { generateQrMatrix, generateQrSvg } from '@youpi/core';
-import { frameAncestorOrigins } from '../server.js';
+import { CheckoutServer, frameAncestorOrigins } from '../server.js';
 
 describe('Checkout Portal Integration Tests', () => {
   let serverInstance;
@@ -163,20 +163,28 @@ describe('Checkout Portal Integration Tests', () => {
       assert.ok(res.text.includes('id="serverStatusLabel"'));
       assert.ok(res.text.includes('id="serverDowntimeAlert"'));
 
-      // Verify Play Store icons are referenced
+      // Verify Play Store icons are referenced and interactive
       assert.ok(res.text.includes('/icons/gpay.png'));
       assert.ok(res.text.includes('/icons/phonepe.png'));
       assert.ok(res.text.includes('/icons/paytm.png'));
+      assert.ok(res.text.includes('handleUpiAppClick'));
+      assert.ok(res.text.includes('id="btnMobileUpiIntent"'));
+
+      // DOM hierarchy invariant: No redundant nested <div class="ypg-body">
+      assert.equal(res.text.includes('<div class="ypg-body">'), false);
+      assert.ok(res.text.includes('<main class="ypg-body">'));
 
       // INVARIANT: Raw Payee VPA / UPI ID row is REMOVED from Order Summary
       assert.equal(res.text.includes('id="drawerVpa"'), false);
     });
 
-    test('GET /css/checkout.css returns the static stylesheet with CORS', async () => {
+    test('GET /css/checkout.css returns the static stylesheet with CORS and responsive modal rules', async () => {
       const resCss = await get('/css/checkout.css');
       assert.equal(resCss.status, 200);
       assert.ok(resCss.headers['content-type'].includes('text/css'));
       assert.ok(resCss.text.includes('.ypg-wrapper'));
+      assert.ok(resCss.text.includes('.ypg-btn-upi-mobile-intent'));
+      assert.ok(resCss.text.includes('.ypg-sticky-footer'));
     });
 
     test('the checkout page loads exactly one copy of the client script', async () => {
@@ -195,6 +203,46 @@ describe('Checkout Portal Integration Tests', () => {
       // redirect and postMessage guards live here.
       assert.ok(res.text.includes('STORAGE_KEY_IDENTITY'));
       assert.ok(res.text.includes('sanitizeRedirectUrl'));
+    });
+
+    test('renders dynamic branding when DEFAULT_APP_NAME or merchant branding is configured', async () => {
+      const origEnv = { ...process.env };
+      process.env.DEFAULT_APP_NAME = 'CustomPay Gateway';
+      process.env.DEFAULT_PRIMARY_COLOR = '#0ea5e9';
+
+      const portalServer = new CheckoutServer();
+      const html = portalServer.renderHtml('pay_123', {
+        merchantName: 'My Super Store',
+        amount: '299.00'
+      });
+
+      assert.ok(html.includes('CustomPay Gateway Checkout'));
+      assert.ok(html.includes('CustomPay Gateway Verified Business'));
+      assert.ok(html.includes('200+ orders verified this month by CustomPay Gateway'));
+      assert.ok(html.includes('CustomPay Gateway Help &amp; Support'));
+
+      process.env = { ...origEnv };
+    });
+
+    test('GET /checkout/:id has balanced DOM structure so ypgStickyFooter stays inside ypg-pc-workspace (Issue #90)', async () => {
+      const res = await get('/checkout/pay_test_uuid_12345');
+      assert.equal(res.status, 200);
+
+      // Must NOT have a duplicate <div class="ypg-body"> wrapper around <main class="ypg-body">
+      assert.equal(res.text.includes('<div class="ypg-body">'), false, 'checkout.html must not wrap partials in a duplicate <div class="ypg-body">');
+      assert.ok(res.text.includes('<main class="ypg-body">'), 'header partial must open <main class="ypg-body">');
+
+      // Verify ypgStickyFooter is closed BEFORE END ypg-pc-workspace, and there are balanced <div> / </div> tags inside ypg-pc-workspace
+      const wsStart = res.text.indexOf('<div class="ypg-pc-workspace">');
+      const footerIdx = res.text.indexOf('id="ypgStickyFooter"');
+      const wsEnd = res.text.indexOf('<!-- END ypg-pc-workspace -->');
+      assert.ok(wsStart > 0 && footerIdx > wsStart && wsEnd > footerIdx, 'ypgStickyFooter must sit inside ypg-pc-workspace');
+
+      const workspaceSlice = res.text.slice(wsStart, wsEnd);
+      const openDivs = (workspaceSlice.match(/<div\b/g) || []).length;
+      const closeDivs = (workspaceSlice.match(/<\/div>/g) || []).length;
+      assert.equal(openDivs, closeDivs, `ypg-pc-workspace must have balanced <div> (${openDivs}) and </div> (${closeDivs}) tags so ypgStickyFooter is not ejected as a 3rd flex column on macOS/iOS`);
+    });
     });
   });
 });

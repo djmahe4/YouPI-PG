@@ -45,6 +45,7 @@ import { registerPaymentRoutes } from './routes/payments.routes.js';
 import { registerCheckoutRoutes } from './routes/checkout.routes.js';
 import { registerPollerRoutes } from './routes/pollers.routes.js';
 import { registerAdminRoutes } from './routes/admin.routes.js';
+import { registerStatementRoutes } from './routes/statement.routes.js';
 import { registerCustomerRoutes } from './routes/customer.routes.js';
 import { registerDeviceRoutes } from './routes/device.routes.js';
 import { getWhatsAppBerryService, WhatsAppBerryService } from './services/whatsapp-berry.service.js';
@@ -115,32 +116,37 @@ export function createPaymentApp(customDb = null, options = {}) {
     eventEmitter
   });
 
-  const recoveryEngine = new RecoveryEngine({
-    db,
-    sessionRepo,
-    accountRepo,
-    queueEngine,
-    timingEngine,
-    auditRepo,
-    eventEmitter
-  });
-
   const webhookEngine = new WebhookEngine({
     db,
     merchantRepo,
     maxRetries: Number(process.env.WEBHOOK_MAX_RETRIES || 5)
   });
 
+  const recoveryEngine = new RecoveryEngine({
+    db,
+    sessionRepo,
+    accountRepo,
+    queueEngine,
+    timingEngine,
+    webhookEngine,
+    auditRepo,
+    eventEmitter
+  });
+
   const server = new HttpServer();
   server.use(authGuard);
-  let checkoutBaseUrl = process.env.BASE_CHECKOUT_URL || 'http://localhost:7000';
+  let checkoutBaseUrl = process.env.CHECKOUT_PUBLIC_URL
+    || process.env.PUBLIC_APP_URL
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+    || process.env.BASE_CHECKOUT_URL
+    || 'http://localhost:7000';
   try {
     const rootEnv = path.resolve(__dirname, '../../../.env');
     if (fs.existsSync(rootEnv)) {
       const raw = fs.readFileSync(rootEnv, 'utf8');
       for (const line of raw.split(/\r?\n/)) {
         const trimmed = line.trim();
-        if (trimmed.startsWith('BASE_CHECKOUT_URL=')) {
+        if (trimmed.startsWith('BASE_CHECKOUT_URL=') && !process.env.CHECKOUT_PUBLIC_URL && !process.env.PUBLIC_APP_URL) {
           const val = trimmed.split('=')[1]?.trim();
           if (val) checkoutBaseUrl = val.replace(/^["']|["']$/g, '');
         }
@@ -167,6 +173,46 @@ export function createPaymentApp(customDb = null, options = {}) {
     }
     return promoted;
   }
+
+  eventEmitter.on('PAYMENT.OBSERVED_SUCCESS', (data) => {
+    const session = sessionRepo.findById(data.paymentId);
+    if (session) {
+      server.broadcastSse(session.id, 'status_change', {
+        status: PaymentStatus.OBSERVED_SUCCESS,
+        settlementState: 'NOT_RECONCILED',
+        verificationLevel: data.verificationLevel || session.verificationLevel || 1,
+        verificationTag: data.verificationTag || session.verificationTag,
+        sources: data.sources || session.verificationSources
+      });
+      webhookEngine.dispatch('OBSERVED_SUCCESS', session).catch(() => {});
+      handleSlotFreedAndPromote(session.receivingAccountId);
+    }
+  });
+
+  eventEmitter.on('PAYMENT.MANUAL_REVIEW', (data) => {
+    const session = sessionRepo.findById(data.paymentId);
+    if (session) {
+      server.broadcastSse(session.id, 'status_change', {
+        status: PaymentStatus.MANUAL_REVIEW,
+        settlementState: 'MANUAL_REVIEW',
+        reason: data.reason || null
+      });
+      webhookEngine.dispatch('MANUAL_REVIEW', session).catch(() => {});
+      handleSlotFreedAndPromote(session.receivingAccountId);
+    }
+  });
+
+  eventEmitter.on('PAYMENT.RECONCILED', (data) => {
+    const session = sessionRepo.findById(data.paymentId);
+    if (session && session.status === PaymentStatus.RECONCILED) {
+      server.broadcastSse(session.id, 'status_change', {
+        status: PaymentStatus.RECONCILED,
+        settlementState: 'RECONCILED',
+        statementLineId: data.statementLineId || null
+      });
+      webhookEngine.dispatch('RECONCILED', session).catch(() => {});
+    }
+  });
 
   // When a payment succeeds, fails, expires, or cancels: dispatch webhook & promote next queued customer
   eventEmitter.on('PAYMENT.SUCCESS', (data) => {
@@ -309,7 +355,7 @@ export function createPaymentApp(customDb = null, options = {}) {
   // an unhandled error that can take the process down.
   const webhookRetryDaemon = setInterval(() => {
     try {
-      const outcome = webhookEngine.retryPending();
+      const outcome = webhookEngine.recoverOutbox().then(() => webhookEngine.retryPending());
       if (outcome && typeof outcome.catch === 'function') outcome.catch(() => {});
     } catch {}
   }, Number(process.env.WEBHOOK_RETRY_INTERVAL_MS || 5000));
@@ -327,11 +373,23 @@ export function createPaymentApp(customDb = null, options = {}) {
     pollIntervalMs: Number(process.env.OBSERVER_POLL_INTERVAL_MS || 1500),
     minSweepCooldownMs: Number(process.env.OBSERVER_SWEEP_COOLDOWN_MS || 2000),
     smsPort: Number(process.env.SMS_OBSERVER_PORT || 6002),
-    gmailPort: Number(process.env.GMAIL_OBSERVER_PORT || 6003)
+    gmailPort: Number(process.env.GMAIL_OBSERVER_PORT || 6003),
+    smsBaseUrl: process.env.SMS_OBSERVER_URL,
+    gmailBaseUrl: process.env.GMAIL_OBSERVER_URL
   });
 
-  // Execute crash recovery on boot
+  // Execute crash recovery on boot (AFTER event listeners are wired so recovered terminal transitions emit webhooks)
   const recoveryStats = recoveryEngine.recover();
+  // Replay only outboxed transitions that lack a durable delivery record.
+  webhookEngine.recoverOutbox().catch(err => {
+    console.error('[webhook] Failed to recover terminal-event outbox:', err.message);
+  });
+
+  // Immediately kick off a background retry sweep for any recovered in-flight or backfilled webhooks
+  try {
+    const initialRetry = webhookEngine.retryPending();
+    if (initialRetry && typeof initialRetry.catch === 'function') initialRetry.catch(() => {});
+  } catch {}
 
   // Health check routes
   const healthHandler = (req, res) => {
@@ -386,6 +444,7 @@ export function createPaymentApp(customDb = null, options = {}) {
   registerCheckoutRoutes(server, context);
   registerPollerRoutes(server, context);
   registerAdminRoutes(server, context);
+  registerStatementRoutes(server, context);
   registerCustomerRoutes(server, context);
   registerDeviceRoutes(server, context);
 
@@ -411,12 +470,14 @@ export function createPaymentApp(customDb = null, options = {}) {
 }
 
 export function startServer(port = null, customDb = null) {
-  const finalPort = port || Number(process.env.PAYMENT_API_PORT || 6100);
+  const finalPort = port ?? Number(
+  process.env.PORT || process.env.PAYMENT_API_PORT || 6100
+  );
   const app = createPaymentApp(customDb);
 
   return new Promise(resolve => {
     // Loopback by default; reach this service via the local Cloudflare Tunnel, not 0.0.0.0.
-    const bindHost = process.env.YOUPI_BIND_HOST || '127.0.0.1';
+    const bindHost = process.env.YOUPI_BIND_HOST || (process.env.RENDER ? '0.0.0.0' : '127.0.0.1');
     const instance = app.rawServer.listen(finalPort, bindHost, () => {
       console.log(`[Payment API] Server listening on port ${finalPort}`);
       resolve({

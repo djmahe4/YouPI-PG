@@ -157,13 +157,14 @@ describe('Payment API End-to-End HTTP Integration Tests', () => {
 
     assert.equal(obsRes.status, 200);
     assert.equal(obsRes.body.attribution.attributed, true);
-    assert.equal(obsRes.body.attribution.outcomeStatus, PaymentStatus.SUCCESS);
+    assert.equal(obsRes.body.attribution.outcomeStatus, PaymentStatus.OBSERVED_SUCCESS);
     assert.equal(obsRes.body.attribution.paymentSessionId, paymentIdA);
 
-    // 6. Verify Payment A is SUCCESS via public API
+    // 6. Verify Payment A is observed, not bank-reconciled, via public API
     const verifyA = await request(`/api/v1/payments/${paymentIdA}`);
     assert.equal(verifyA.status, 200);
-    assert.equal(verifyA.body.status, 'SUCCESS');
+    assert.equal(verifyA.body.status, 'OBSERVED_SUCCESS');
+    assert.equal(verifyA.body.settlementState, 'NOT_RECONCILED');
     assert.ok(verifyA.body.completedAt);
 
     // 7. Verify Payment B has been automatically promoted to ACTIVE in the queue!
@@ -416,11 +417,17 @@ describe('Payment API End-to-End HTTP Integration Tests', () => {
   });
 
   test('Payment timer does not start until customer logs in or signs up', async () => {
-    // Ensure slot is clean
-    const prevActive = serverInstance.app.context.sessionRepo.findCurrentActiveOrProcessing('00000000-0000-0000-0000-000000000002');
-    if (prevActive) {
-      serverInstance.app.context.sessionRepo.transitionToTerminal(prevActive.id, PaymentStatus.CANCELLED);
-    }
+    // Ensure slot and all queued sessions on this receiving account are cleanly reset
+    testDb.execute(`
+      UPDATE payment_sessions
+      SET status = 'CANCELLED'
+      WHERE receiving_account_id = ? AND status IN ('ACTIVE', 'PROCESSING', 'QUEUED')
+    `, ['00000000-0000-0000-0000-000000000002']);
+    testDb.execute(`
+      UPDATE payment_receiving_accounts
+      SET is_slot_busy = 0, current_active_session_id = NULL
+      WHERE id = ?
+    `, ['00000000-0000-0000-0000-000000000002']);
 
     // 1. Create a payment without pre-authenticated customer
     const createRes = await request('/api/v1/payments', {
@@ -572,7 +579,8 @@ describe('Payment API End-to-End HTTP Integration Tests', () => {
 
     // Check payment status: must be SUCCESS with Level 1
     const checkL1 = await request(`/api/v1/payments/${paymentId}`, { headers: merchantHeaders(merchantSecret) });
-    assert.equal(checkL1.body.status, 'SUCCESS');
+    assert.equal(checkL1.body.status, 'OBSERVED_SUCCESS');
+    assert.equal(checkL1.body.settlementState, 'NOT_RECONCILED');
     assert.equal(checkL1.body.verificationLevel, 1);
     assert.deepEqual(checkL1.body.verificationSources, ['GOOGLE_MESSAGES']);
 
@@ -811,8 +819,9 @@ describe('Payment API End-to-End HTTP Integration Tests', () => {
       ]);
       assert.equal(attempts.length, 1);
 
-      // The engine records the delivery once the response has come back, so
-      // the row is waited for rather than read once and called a failure.
+      // The engine records a write-ahead row before the request and updates
+      // attempt_count >= 1 once the response has come back, so wait until
+      // the first attempt has finalized.
       let failedRow = null;
       const rowDeadline = Date.now() + 5000;
       while (Date.now() < rowDeadline) {
@@ -820,7 +829,7 @@ describe('Payment API End-to-End HTTP Integration Tests', () => {
           'SELECT id, attempt_count, is_successful, next_retry_at FROM webhook_deliveries WHERE payment_id = ?',
           [paymentId]
         );
-        if (failedRow) break;
+        if (failedRow && failedRow.attempt_count >= 1) break;
         await new Promise(resolve => setTimeout(resolve, 50));
       }
       assert.ok(failedRow, 'the failed delivery was not recorded');
@@ -946,17 +955,18 @@ describe('Payment API End-to-End HTTP Integration Tests', () => {
 
       // Payment MUST be immediately SUCCESS for customer
       const checkAfterObs1 = await request(`/api/v1/payments/${paymentId}`, { headers: merchantHeaders(merchantSecret) });
-      assert.equal(checkAfterObs1.body.status, 'SUCCESS');
+      assert.equal(checkAfterObs1.body.status, 'OBSERVED_SUCCESS');
       assert.equal(checkAfterObs1.body.verificationLevel, 1);
 
       // Checkout state MUST reflect SUCCESS immediately
       const stateAfterObs1 = await request(`/api/v1/checkout/${paymentId}/state`);
-      assert.equal(stateAfterObs1.body.status, 'SUCCESS');
+      assert.equal(stateAfterObs1.body.status, 'OBSERVED_SUCCESS');
 
       // Wait 150ms for webhook dispatch
       await new Promise(r => setTimeout(r, 150));
       assert.equal(webhookDeliveries.length, 1);
-      assert.equal(webhookDeliveries[0].body.event, 'SUCCESS');
+      assert.equal(webhookDeliveries[0].body.event, 'OBSERVED_SUCCESS');
+      assert.equal(webhookDeliveries[0].body.settlementState, 'NOT_RECONCILED');
       assert.equal(webhookDeliveries[0].body.orderId, 'AUTODETECT-ORD-777');
       assert.equal(webhookDeliveries[0].body.amount, '320.00');
 
@@ -1123,11 +1133,77 @@ describe('Payment API End-to-End HTTP Integration Tests', () => {
 
 
       // Attempt confirm-cod on cancelled session
-      const codRes = await request(`/api/v1/checkout/${paymentId}/confirm-cod`, {
+      const codRes = await request(`/api/v1/checkout/${paymentId}/cancel`, {
         method: 'POST'
       });
-      assert.equal(codRes.status, 400);
-      assert.ok(codRes.body.error.includes('Cannot place COD order for terminal session'));
+      const codAfterCancel = await request(`/api/v1/checkout/${paymentId}/confirm-cod`, {
+        method: 'POST'
+      });
+      assert.equal(codAfterCancel.status, 400);
+      assert.ok(codAfterCancel.body.error.includes('Cannot place COD order for terminal session'));
+    });
+
+    test('Merchant API Key rotation, inspection, and flexible data-youpi-key / X-Merchant-Id resolution (Issue #89)', async () => {
+      // 1. Inspect merchant settings via admin API
+      const settingsBefore = await request('/api/v1/admin/merchant-settings');
+      assert.equal(settingsBefore.status, 200);
+      assert.ok(settingsBefore.body.merchantId);
+      assert.equal(settingsBefore.body.publishableKey, settingsBefore.body.merchantId);
+      assert.ok(settingsBefore.body.merchantKey, 'merchantKey should be returned in merchant-settings');
+
+      // 2. Rotate Merchant API Key via POST /api/v1/admin/merchant-key/rotate
+      const rotateRes = await request('/api/v1/admin/merchant-key/rotate', {
+        method: 'POST',
+        body: { merchantId: settingsBefore.body.merchantId }
+      });
+      assert.equal(rotateRes.status, 200);
+      assert.equal(rotateRes.body.success, true);
+      assert.ok(rotateRes.body.merchantKey.startsWith('mk_live_'), 'rotated key must start with mk_live_');
+
+      // 3. Verify GET /api/v1/admin/merchant-settings reflects the rotated key
+      const settingsAfter = await request('/api/v1/admin/merchant-settings');
+      assert.equal(settingsAfter.status, 200);
+      assert.equal(settingsAfter.body.merchantKey, rotateRes.body.merchantKey);
+
+      // 4. Create payment passing the rotated mk_live_... key in X-Merchant-Key
+      const payWithKeyHeader = await request('/api/v1/payments', {
+        method: 'POST',
+        headers: {
+          'X-Merchant-Id': settingsBefore.body.merchantId,
+          'X-Merchant-Key': rotateRes.body.merchantKey
+        },
+        body: {
+          orderId: 'ORD-MK-HEADER-89',
+          amount: '125.00'
+        }
+      });
+      assert.equal(payWithKeyHeader.status, 201);
+
+      // 5. Create payment when developer passes mk_live_... directly in data-youpi-key (sent as X-Merchant-Id by youpi.js)
+      const payWithKeyAsId = await request('/api/v1/payments', {
+        method: 'POST',
+        headers: {
+          'X-Merchant-Id': rotateRes.body.merchantKey
+        },
+        body: {
+          orderId: 'ORD-MK-AS-ID-89',
+          amount: '135.00'
+        }
+      });
+      assert.equal(payWithKeyAsId.status, 201);
+
+      // 6. Create payment when developer leaves documentation placeholder YOUR_MERCHANT_KEY in data-youpi-key
+      const payWithPlaceholder = await request('/api/v1/payments', {
+        method: 'POST',
+        headers: {
+          'X-Merchant-Id': 'YOUR_MERCHANT_KEY'
+        },
+        body: {
+          orderId: 'ORD-MK-PLACEHOLDER-89',
+          amount: '145.00'
+        }
+      });
+      assert.equal(payWithPlaceholder.status, 201);
     });
   });
 });

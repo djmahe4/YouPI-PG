@@ -195,6 +195,23 @@ CREATE TABLE IF NOT EXISTS webhook_deliveries (
 
 CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_retry ON webhook_deliveries (is_successful, next_retry_at);
 
+-- Durable terminal-event outbox: populated in the same SQLite transaction as the status update.
+-- Only NEW terminal transitions are queued; migrations must never replay historic orders.
+CREATE TABLE IF NOT EXISTS payment_webhook_outbox (
+    payment_id TEXT PRIMARY KEY REFERENCES payment_sessions(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL CHECK(event_type IN ('SUCCESS','FAILED','EXPIRED','CANCELLED')),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_terminal_payment_webhook_outbox
+AFTER UPDATE OF status ON payment_sessions
+WHEN NEW.status IN ('SUCCESS','FAILED','EXPIRED','CANCELLED')
+ AND OLD.status NOT IN ('SUCCESS','FAILED','EXPIRED','CANCELLED')
+BEGIN
+    INSERT OR IGNORE INTO payment_webhook_outbox (payment_id, event_type)
+    VALUES (NEW.id, NEW.status);
+END;
+
 -- 8. Support Tickets & Ticket Messages
 CREATE TABLE IF NOT EXISTS support_tickets (
     id TEXT PRIMARY KEY,
@@ -263,5 +280,27 @@ CREATE TABLE IF NOT EXISTS security_events (
 CREATE INDEX IF NOT EXISTS idx_security_events_customer ON security_events (customer_id);
 CREATE INDEX IF NOT EXISTS idx_security_events_session ON security_events (payment_session_id);
 CREATE INDEX IF NOT EXISTS idx_security_events_type ON security_events (event_type);
+
+-- 11. Bank statement lines imported by an operator. Observers do not write this table.
+CREATE TABLE IF NOT EXISTS bank_statement_lines (
+    id TEXT PRIMARY KEY,
+    receiving_account_id TEXT NOT NULL REFERENCES payment_receiving_accounts(id) ON DELETE CASCADE,
+    source_hash VARCHAR(64) NOT NULL,
+    booked_on DATE NOT NULL,
+    amount_paise BIGINT NOT NULL,
+    currency VARCHAR(3) NOT NULL DEFAULT 'INR',
+    direction VARCHAR(10) NOT NULL,
+    utr VARCHAR(32),
+    narration TEXT NOT NULL DEFAULT '',
+    match_status VARCHAR(32) NOT NULL,
+    match_reason VARCHAR(64),
+    payment_session_id TEXT REFERENCES payment_sessions(id),
+    imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_statement_lines_source
+  ON bank_statement_lines (receiving_account_id, source_hash);
+CREATE INDEX IF NOT EXISTS idx_statement_lines_utr
+  ON bank_statement_lines (receiving_account_id, utr);
 
 

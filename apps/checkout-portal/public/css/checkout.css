@@ -14,7 +14,32 @@
       --ypg-offer-bg: #eff6ff;
       --ypg-offer-border: #dbeafe;
       --ypg-danger: #ef4444;
+      --ypg-input-border: #cbd5e1;
       --ypg-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    /* High contrast: set by the checkout script when the device asks for more
+       contrast (prefers-contrast: more). Text reaches 7:1 on its background and
+       card/input borders 3:1. The --ypg-hc-* names exist only here; elsewhere
+       each var() falls back to its original colour. The merchant colour is
+       darkened to 7:1 in applyDynamicTheme, since it is set inline. */
+    :root[data-theme="checkout-hc"] {
+      --ypg-blue: #0846a6;
+      --ypg-blue-dark: #062f70;
+      --ypg-text-muted: #334155;
+      --ypg-border: #7c8a9e;
+      --ypg-border-light: #7c8a9e;
+      --ypg-input-border: #64748b;
+      --ypg-green: #065f46;
+      --ypg-danger: #7f1d1d;
+      --ypg-hc-text-body: #334155;
+      --ypg-hc-text-faint: #334155;
+      --ypg-hc-success: #14532d;
+      --ypg-hc-danger: #7f1d1d;
+      --ypg-hc-warning: #78350f;
+      --ypg-hc-info: #1e3a8a;
+      --ypg-hc-divider: #7c8a9e;
+      --ypg-hc-avatar: #0f766e;
     }
 
     * {
@@ -212,7 +237,7 @@
       gap: 6px;
       font-size: 13px;
       font-weight: 700;
-      color: #64748b;
+      color: var(--ypg-text-muted);
     }
 
     /* --- 2. AUTHENTIC YOUPI PG HEADER --- */
@@ -268,7 +293,7 @@
       width: 38px;
       height: 38px;
       border-radius: 10px;
-      background: #14b8a6;
+      background: var(--ypg-hc-avatar, #14b8a6);
       border: 1.5px solid rgba(255, 255, 255, 0.85);
       color: #ffffff;
       font-size: 19px;
@@ -449,7 +474,7 @@
       gap: 8px;
       font-size: 12px;
       font-weight: 600;
-      color: #1e3a8a;
+      color: var(--ypg-hc-info, #1e3a8a);
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
@@ -460,7 +485,7 @@
       height: 20px;
       border-radius: 50%;
       background: #fee2e2;
-      color: #b91c1c;
+      color: var(--ypg-hc-danger, #b91c1c);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -495,12 +520,12 @@
 
     .ypg-countdown-pill {
       background: #f1f5f9;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--ypg-border);
       border-radius: 9999px;
       padding: 2px 9px;
       font-size: 11.5px;
       font-weight: 600;
-      color: #475569;
+      color: var(--ypg-hc-text-body, #475569);
       display: inline-flex;
       align-items: center;
       gap: 4px;
@@ -522,7 +547,7 @@
       width: 130px;
       height: 130px;
       background: #ffffff;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--ypg-border);
       border-radius: 12px;
       padding: 6px;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
@@ -562,14 +587,26 @@
     }
 
     .ypg-app-icon {
-      width: 22px;
-      height: 22px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      user-select: none;
+    }
+
+    .ypg-app-icon:hover {
+      transform: scale(1.18);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22);
+    }
+
+    .ypg-app-icon:active {
+      transform: scale(0.92);
     }
 
     .ypg-app-icon img,
@@ -577,6 +614,11 @@
       width: 100%;
       height: 100%;
       border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .ypg-btn-upi-mobile-intent {
+      display: none;
     }
 
     .ypg-green-pill-badge {
@@ -603,7 +645,7 @@
     .ypg-vpa-badge {
       font-size: 11px;
       font-weight: 600;
-      color: #475569;
+      color: var(--ypg-hc-text-body, #475569);
       background: #edf2f7;
       padding: 2px 7px;
       border-radius: 6px;
@@ -615,7 +657,7 @@
 
     .ypg-btn-mini-copy {
       background: none;
-      border: 1px solid #cbd5e1;
+      border: 1px solid var(--ypg-input-border);
       border-radius: 5px;
       font-size: 10px;
       font-weight: 700;
@@ -650,7 +692,7 @@
       gap: 8px;
       font-size: 12px;
       font-weight: 600;
-      color: #166534;
+      color: var(--ypg-hc-success, #166534);
       margin-bottom: 14px;
     }
 
@@ -739,7 +781,7 @@
       cursor: pointer;
       border: none;
       background: transparent;
-      color: #64748b;
+      color: var(--ypg-text-muted);
       transition: all 0.15s ease;
       display: inline-flex;
       align-items: center;
@@ -847,7 +889,7 @@
     .ypg-input-control {
       width: 100%;
       padding: 10px 12px;
-      border: 1px solid #cbd5e1;
+      border: 1px solid var(--ypg-input-border);
       border-radius: 8px;
       font-size: 13.5px;
       color: var(--ypg-text-dark);
@@ -889,7 +931,7 @@
     .ypg-phone-input-wrap {
       display: flex;
       align-items: center;
-      border: 1px solid #cbd5e1;
+      border: 1px solid var(--ypg-input-border);
       border-radius: 8px;
       overflow: hidden;
       background: #ffffff;
@@ -904,7 +946,7 @@
     .ypg-phone-prefix {
       padding: 10px 12px;
       background: #f8fafc;
-      border-right: 1px solid #e2e8f0;
+      border-right: 1px solid var(--ypg-border);
       font-size: 13.5px;
       font-weight: 700;
       color: var(--ypg-navy);
@@ -934,7 +976,7 @@
       padding: 10px 12px;
       margin-bottom: 12px;
       font-size: 12.5px;
-      color: #166534;
+      color: var(--ypg-hc-success, #166534);
     }
 
     .ypg-btn-link {
@@ -1010,7 +1052,7 @@
     .ypg-queue-number {
       font-size: 36px;
       font-weight: 900;
-      color: #1d4ed8;
+      color: var(--ypg-hc-info, #1d4ed8);
       margin: 8px 0;
     }
 
@@ -1103,7 +1145,7 @@
 
     .ypg-proc-timer-badge {
       background: #f1f5f9;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--ypg-border);
       border-radius: 9999px;
       padding: 3px 12px;
       font-size: 12px;
@@ -1175,14 +1217,14 @@
     .ypg-success-title {
       font-size: 19px;
       font-weight: 800;
-      color: #0f172a;
+      color: var(--ypg-text-dark);
       margin-bottom: 4px;
     }
 
     .ypg-success-amount {
       font-size: 24px;
       font-weight: 900;
-      color: #10b981;
+      color: var(--ypg-hc-success, #10b981);
       margin-bottom: 8px;
     }
 
@@ -1217,7 +1259,7 @@
       height: 68px;
       border-radius: 50%;
       background: #fee2e2;
-      color: #ef4444;
+      color: var(--ypg-hc-danger, #ef4444);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1233,7 +1275,7 @@
     .ypg-expired-title {
       font-size: 19px;
       font-weight: 800;
-      color: #0f172a;
+      color: var(--ypg-text-dark);
       margin-bottom: 6px;
     }
 
@@ -1273,8 +1315,8 @@
     .ypg-btn-expired-secondary {
       padding: 12px 16px;
       background: #f1f5f9;
-      color: #475569;
-      border: 1px solid #cbd5e1;
+      color: var(--ypg-hc-text-body, #475569);
+      border: 1px solid var(--ypg-input-border);
       border-radius: 8px;
       font-size: 13.5px;
       font-weight: 700;
@@ -1316,7 +1358,7 @@
       border-radius: 50%;
       background: #fef2f2;
       border: 2px solid #fee2e2;
-      color: #dc2626;
+      color: var(--ypg-hc-danger, #dc2626);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1333,7 +1375,7 @@
       align-items: center;
       gap: 6px;
       background: #fef2f2;
-      color: #b91c1c;
+      color: var(--ypg-hc-danger, #b91c1c);
       border: 1px solid #fca5a5;
       font-size: 11px;
       font-weight: 800;
@@ -1354,19 +1396,19 @@
     .ypg-blocked-title {
       font-size: 20px;
       font-weight: 800;
-      color: #991b1b;
+      color: var(--ypg-hc-danger, #991b1b);
       margin-bottom: 6px;
       letter-spacing: -0.01em;
     }
     .ypg-blocked-subtitle {
       font-size: 13px;
       font-weight: 600;
-      color: #475569;
+      color: var(--ypg-hc-text-body, #475569);
       margin-bottom: 14px;
     }
     .ypg-blocked-card {
       background: #f8fafc;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--ypg-border);
       border-radius: 12px;
       padding: 14px 16px;
       margin-bottom: 18px;
@@ -1383,12 +1425,12 @@
     .ypg-blocked-investigation {
       margin-top: 10px;
       padding-top: 10px;
-      border-top: 1px dashed #cbd5e1;
+      border-top: 1px dashed var(--ypg-input-border);
       display: flex;
       align-items: flex-start;
       gap: 8px;
       font-size: 11.5px;
-      color: #64748b;
+      color: var(--ypg-text-muted);
       line-height: 1.45;
     }
     .ypg-blocked-details {
@@ -1405,6 +1447,7 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
     .ypg-blocked-details-label {
+      /* Light text on the dark details panel: stays out of the high-contrast remap. */
       color: #94a3b8;
     }
     .ypg-blocked-details-val {
@@ -1452,7 +1495,7 @@
       align-items: center;
       gap: 6px;
       background: #fef3c7;
-      color: #92400e;
+      color: var(--ypg-hc-warning, #92400e);
       border: 1px solid #fde68a;
       padding: 4px 12px;
       border-radius: 20px;
@@ -1476,7 +1519,7 @@
       border-radius: 50%;
       background: radial-gradient(circle, #fef3c7 0%, #fffbeb 100%);
       border: 2px solid #fcd34d;
-      color: #b45309;
+      color: var(--ypg-hc-warning, #b45309);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1493,7 +1536,7 @@
     .ypg-duplicate-subtitle {
       font-size: 13px;
       font-weight: 600;
-      color: #64748b;
+      color: var(--ypg-text-muted);
       margin-bottom: 16px;
     }
     .ypg-duplicate-card {
@@ -1542,7 +1585,7 @@
     /* --- 11. AUTHENTIC STICKY BOTTOM FOOTER --- */
     .ypg-sticky-footer {
       background: #ffffff;
-      border-top: 1px solid #f1f5f9;
+      border-top: 1px solid var(--ypg-hc-divider, #f1f5f9);
       display: flex;
       flex-direction: column;
       flex-shrink: 0;
@@ -1553,7 +1596,7 @@
     /* Legal Disclaimer */
     .ypg-legal-disclaimer {
       font-size: 11px;
-      color: #64748b;
+      color: var(--ypg-text-muted);
       text-align: center;
       padding: 4px 16px;
       line-height: 1.35;
@@ -1576,7 +1619,7 @@
     .ypg-bottom-price {
       font-size: 18px;
       font-weight: 800;
-      color: #0f172a;
+      color: var(--ypg-text-dark);
       letter-spacing: -0.01em;
       line-height: 1.2;
     }
@@ -1586,7 +1629,7 @@
       border: none;
       font-size: 11px;
       font-weight: 600;
-      color: #64748b;
+      color: var(--ypg-text-muted);
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -1653,7 +1696,7 @@
       display: flex;
       justify-content: space-between;
       font-size: 12.5px;
-      color: #475569;
+      color: var(--ypg-hc-text-body, #475569);
       margin-bottom: 6px;
     }
 
@@ -1662,7 +1705,7 @@
       padding-top: 8px;
       font-size: 14px;
       font-weight: 800;
-      color: #0f172a;
+      color: var(--ypg-text-dark);
     }
 
     /* Toast Notification */
@@ -1960,14 +2003,14 @@
     .rzp-sheet-title {
       font-size: 19px;
       font-weight: 800;
-      color: #0f172a;
+      color: var(--ypg-text-dark);
       letter-spacing: -0.3px;
       margin-bottom: 4px;
     }
 
     .rzp-sheet-subtitle {
       font-size: 13px;
-      color: #64748b;
+      color: var(--ypg-text-muted);
       margin-bottom: 6px;
       line-height: 1.4;
     }
@@ -1976,7 +2019,7 @@
       width: 100%;
       height: 42px;
       background: #ffffff;
-      border: 1.5px solid #e2e8f0;
+      border: 1.5px solid var(--ypg-border);
       border-radius: 10px;
       font-size: 14px;
       font-weight: 700;
@@ -1988,7 +2031,7 @@
 
     .rzp-sheet-cancel-btn:hover {
       background: #f8fafc;
-      border-color: #cbd5e1;
+      border-color: var(--ypg-input-border);
     }
 
     /* Cancel Modal Header Arc with Doors */
@@ -2033,11 +2076,11 @@
       width: 100%;
       height: 42px;
       background: #ffffff;
-      border: 1.5px solid #e2e8f0;
+      border: 1.5px solid var(--ypg-border);
       border-radius: 10px;
       font-size: 14px;
       font-weight: 700;
-      color: #0f172a;
+      color: var(--ypg-text-dark);
       cursor: pointer;
       margin-top: 14px;
       transition: all 0.2s;
@@ -2067,7 +2110,7 @@
 
     .rzp-secured-by {
       font-size: 12px;
-      color: #64748b;
+      color: var(--ypg-text-muted);
       margin-top: 22px;
       display: flex;
       align-items: center;
@@ -2091,7 +2134,7 @@
     .ypg-time-saving-text {
       font-size: 12px;
       font-weight: 700;
-      color: #14532d;
+      color: var(--ypg-hc-success, #14532d);
       line-height: 1.4;
       flex: 1;
     }
@@ -2100,7 +2143,7 @@
       font-family: monospace;
       font-size: 13px;
       font-weight: 800;
-      color: #15803d;
+      color: var(--ypg-hc-success, #15803d);
       background: rgba(255, 255, 255, 0.85);
       padding: 1px 6px;
       border-radius: 4px;
@@ -2166,7 +2209,7 @@
     .ypg-queue-conversion-pill {
       font-size: 11.5px;
       font-weight: 700;
-      color: #15803d;
+      color: var(--ypg-hc-success, #15803d);
       background: rgba(255, 255, 255, 0.9);
       padding: 2px 8px;
       border-radius: 12px;
@@ -2177,7 +2220,7 @@
     .ypg-queue-conversion-text {
       font-size: 12.5px;
       line-height: 1.45;
-      color: #14532d;
+      color: var(--ypg-hc-success, #14532d);
       margin-bottom: 12px;
     }
 
@@ -2357,20 +2400,20 @@
         padding: 14px 16px;
         margin-top: 14px;
         box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-        color: #0f172a;
+        color: var(--ypg-text-dark);
       }
 
       .ypg-pc-price-label {
         font-size: 12px;
         font-weight: 600;
-        color: #64748b;
+        color: var(--ypg-text-muted);
         letter-spacing: 0.2px;
       }
 
       .ypg-pc-price-val {
         font-size: 26px;
         font-weight: 800;
-        color: #0f172a;
+        color: var(--ypg-text-dark);
         margin-top: 4px;
         letter-spacing: -0.5px;
       }
@@ -2437,7 +2480,7 @@
 
       .ypg-pc-topbar {
         height: 48px;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid var(--ypg-hc-divider, #f1f5f9);
         display: flex !important;
         align-items: center;
         justify-content: space-between;
@@ -2451,7 +2494,7 @@
       .ypg-pc-topbar-title {
         font-size: 15px;
         font-weight: 700;
-        color: #0f172a;
+        color: var(--ypg-text-dark);
       }
 
       .ypg-pc-topbar-actions {
@@ -2467,7 +2510,7 @@
         background: none;
         border: none;
         font-size: 16px;
-        color: #64748b;
+        color: var(--ypg-text-muted);
         cursor: pointer;
         padding: 4px 6px;
         border-radius: 4px;
@@ -2482,20 +2525,19 @@
 
       .ypg-pc-btn-more:hover,
       .ypg-pc-btn-close:hover {
-        color: #0f172a;
+        color: var(--ypg-text-dark);
         background: #f1f5f9;
       }
 
       /* PC Body Container - Bounded to viewport height */
       .ypg-body {
         flex: 1 !important;
-        height: calc(100% - 48px) !important;
-        max-height: calc(100% - 48px) !important;
+        height: auto !important;
+        min-height: 0 !important;
         display: flex !important;
         flex-direction: column !important;
         padding: 0 !important;
         overflow: hidden !important;
-        min-height: 0 !important;
       }
 
       #paymentGatewayInterface:not([hidden]) {
@@ -2543,7 +2585,7 @@
         min-width: 220px !important;
         height: 100% !important;
         max-height: 100% !important;
-        border-right: 1px solid #f1f5f9 !important;
+        border-right: 1px solid var(--ypg-hc-divider, #f1f5f9) !important;
         padding: 14px 12px !important;
         display: flex !important;
         flex-direction: column !important;
@@ -2564,7 +2606,7 @@
       }
 
       .ypg-pc-method-card {
-        border: 1.5px solid #e2e8f0;
+        border: 1.5px solid var(--ypg-border);
         border-radius: 10px;
         padding: 10px 12px;
         cursor: pointer;
@@ -2573,7 +2615,7 @@
       }
 
       .ypg-pc-method-card:hover {
-        border-color: #cbd5e1;
+        border-color: var(--ypg-input-border);
         background: #f8fafc;
       }
 
@@ -2598,13 +2640,13 @@
       .ypg-pc-method-title {
         font-size: 13px;
         font-weight: 700;
-        color: #0f172a;
+        color: var(--ypg-text-dark);
       }
 
       .ypg-pc-cash-pill {
         font-size: 10px;
         font-weight: 700;
-        color: #0369a1;
+        color: var(--ypg-hc-info, #0369a1);
         background: #e0f2fe;
         padding: 2px 6px;
         border-radius: 10px;
@@ -2612,7 +2654,7 @@
 
       .ypg-pc-method-sub {
         font-size: 11px;
-        color: #64748b;
+        color: var(--ypg-text-muted);
       }
 
       .ypg-pc-method-icons {
@@ -2688,6 +2730,27 @@
         border-radius: 16px !important;
         box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4) !important;
         animation: rzpModalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+      }
+
+      /* Desktop Sticky Footer (Pinned firmly at the bottom of workspace) */
+      .ypg-sticky-footer {
+        margin-top: auto !important;
+        background: #ffffff !important;
+        border-top: 1px solid #f1f5f9 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        flex-shrink: 0 !important;
+        position: relative !important;
+        z-index: 20 !important;
+        width: 100% !important;
+      }
+
+      .ypg-legal-disclaimer {
+        font-size: 11px !important;
+        color: #64748b !important;
+        text-align: center !important;
+        padding: 8px 16px !important;
+        line-height: 1.4 !important;
       }
     }
 
@@ -2830,6 +2893,30 @@
       .mob-only-btn {
         display: inline !important;
       }
+
+      .ypg-btn-upi-mobile-intent {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 12px 16px;
+        background: var(--ypg-blue, #0b63e5);
+        color: #ffffff;
+        border: none;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+        margin-top: 10px;
+        box-shadow: 0 4px 14px rgba(11, 99, 229, 0.28);
+        transition: transform 0.15s ease, filter 0.15s ease;
+      }
+
+      .ypg-btn-upi-mobile-intent:active {
+        transform: scale(0.98);
+        filter: brightness(0.92);
+      }
     }
 
     /* --- OFFICIAL GOOGLE PLAY STORE APP ICONS --- */
@@ -2850,7 +2937,7 @@
       align-items: center;
       justify-content: center;
       background: #ffffff;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--ypg-border);
       flex-shrink: 0;
     }
 
@@ -2879,19 +2966,19 @@
 
     .ypg-server-health-indicator.is-working {
       background: #f0fdf4;
-      color: #15803d;
+      color: var(--ypg-hc-success, #15803d);
       border: 1px solid #bbf7d0;
     }
 
     .ypg-server-health-indicator.is-busy {
       background: #fefce8;
-      color: #854d0e;
+      color: var(--ypg-hc-warning, #854d0e);
       border: 1px solid #fef08a;
     }
 
     .ypg-server-health-indicator.is-issues {
       background: #fef2f2;
-      color: #b91c1c;
+      color: var(--ypg-hc-danger, #b91c1c);
       border: 1px solid #fecaca;
     }
 
@@ -2991,11 +3078,11 @@
     }
 
     .ypg-downtime-alert.is-warning .ypg-downtime-heading {
-      color: #92400e;
+      color: var(--ypg-hc-warning, #92400e);
     }
 
     .ypg-downtime-alert.is-warning .ypg-downtime-msg {
-      color: #78350f;
+      color: var(--ypg-hc-warning, #78350f);
     }
 
     .ypg-downtime-icon {
@@ -3007,13 +3094,13 @@
     .ypg-downtime-heading {
       font-size: 12px;
       font-weight: 800;
-      color: #991b1b;
+      color: var(--ypg-hc-danger, #991b1b);
       margin-bottom: 3px;
     }
 
     .ypg-downtime-msg {
       font-size: 11.5px;
-      color: #7f1d1d;
+      color: var(--ypg-hc-danger, #7f1d1d);
       line-height: 1.4;
       margin-bottom: 6px;
     }

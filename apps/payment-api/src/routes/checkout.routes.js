@@ -3,6 +3,16 @@ import { toRupeesString, buildUpiUri, PaymentStatus, PaymentMethod, UPI_PROVIDER
 import { validateSessionDeviceAccess, verifyRegisteredDeviceCredentials } from '@youpi/core';
 import { isAdminRequest, isPaymentOwner } from '../auth-guard.js';
 
+const CLOSED_CHECKOUT_STATES = [
+  PaymentStatus.SUCCESS,
+  PaymentStatus.OBSERVED_SUCCESS,
+  PaymentStatus.RECONCILED,
+  PaymentStatus.MANUAL_REVIEW,
+  PaymentStatus.FAILED,
+  PaymentStatus.EXPIRED,
+  PaymentStatus.CANCELLED
+];
+
 /**
  * Validates device access to an active payment session.
  * Enforces:
@@ -11,7 +21,7 @@ import { isAdminRequest, isPaymentOwner } from '../auth-guard.js';
  */
 function checkSessionDeviceAccess(session, req, body = null, ctx = null) {
   // If session is already in a terminal state, allow access so terminal status can be rendered
-  if ([PaymentStatus.SUCCESS, PaymentStatus.FAILED, PaymentStatus.EXPIRED, PaymentStatus.CANCELLED, PaymentStatus.SUSPICIOUS].includes(session.status)) {
+  if (CLOSED_CHECKOUT_STATES.includes(session.status)) {
     return { allowed: true, boundDeviceId: session.deviceId, isTerminal: true };
   }
 
@@ -110,12 +120,17 @@ function checkSessionDeviceAccess(session, req, body = null, ctx = null) {
  * Prevents internal credentials (gmailConfig, cloudflareTunnelCommand, tokens) from leaking to public checkouts.
  */
 function sanitizePublicBranding(raw = {}) {
+  const envAppName = (process.env.DEFAULT_APP_NAME || '').trim();
+  const envPrimaryColor = (process.env.DEFAULT_PRIMARY_COLOR || '').trim();
+  const defaultAppName = envAppName || 'YOUPI PG';
+  const defaultPrimaryColor = envPrimaryColor || '#2563eb';
+
   // Strict explicit allowlist to prevent arbitrary internal metadata leaks (CWE-200 / OWASP A01)
   return {
-    appName: raw.appName || 'YOUPI PG',
-    primaryColor: raw.primaryColor || '#2563eb',
+    appName: raw.appName || defaultAppName,
+    primaryColor: raw.primaryColor || defaultPrimaryColor,
     headerTheme: raw.headerTheme || 'gradient',
-    logoUrl: raw.logoUrl || null,
+    logoUrl: raw.logoUrl !== undefined ? raw.logoUrl : ((process.env.DEFAULT_LOGO_URL || '').trim() || null),
     counterInstructions: raw.counterInstructions || 'Please visit the billing counter and present this screen to the cashier.',
     cardCounterInstructions: raw.cardCounterInstructions || 'Please swipe, insert, or tap your credit or debit card on the store POS terminal at the billing desk.',
     supportEmails: Array.isArray(raw.supportEmails) ? raw.supportEmails : [],
@@ -127,12 +142,12 @@ function sanitizePublicBranding(raw = {}) {
     enabledPaymentMethods: Array.isArray(raw.enabledPaymentMethods) ? raw.enabledPaymentMethods : ['UPI'],
     sidebarNotice: raw.sidebarNotice || undefined,
     checkoutNotice: raw.checkoutNotice || undefined,
-    footerGuarantee: raw.footerGuarantee || undefined,
-    trustBadgeText: raw.trustBadgeText || undefined,
+    footerGuarantee: raw.footerGuarantee || (process.env.DEFAULT_FOOTER_GUARANTEE || '').trim() || undefined,
+    trustBadgeText: raw.trustBadgeText || (process.env.DEFAULT_TRUST_BADGE_TEXT || '').trim() || undefined,
     hideTrustBadge: raw.hideTrustBadge !== undefined ? Boolean(raw.hideTrustBadge) : undefined,
     subbannerText: raw.subbannerText || undefined,
     hideSubbanner: raw.hideSubbanner !== undefined ? Boolean(raw.hideSubbanner) : undefined,
-    hidePoweredBy: raw.hidePoweredBy !== undefined ? Boolean(raw.hidePoweredBy) : undefined,
+    hidePoweredBy: raw.hidePoweredBy !== undefined ? Boolean(raw.hidePoweredBy) : (process.env.DEFAULT_HIDE_POWERED_BY === 'true' ? true : undefined),
     hideTimeSavingBanner: raw.hideTimeSavingBanner !== undefined ? Boolean(raw.hideTimeSavingBanner) : undefined
   };
 }
@@ -149,19 +164,33 @@ function sanitizePublicBranding(raw = {}) {
  * }} ctx
  */
 /**
- * Determines whether UPI pollers / observers (Android SMS, Google Messages, Gmail) are active.
- * Strict Rule: Healthy (WORKING) ONLY IF:
- * 1. Gmail OAuth is configured AND Gmail observer is actively polling.
- * 2. SMS Gateway is connected (Android app or Google Messages) AND actively polling / reflecting messages.
- * If either is missing, unconfigured, or offline, status is ISSUES with downtime warning.
+ * New UPI sessions require a live SMS observer (Android heartbeat within 5 minutes,
+ * or Google Messages connected). Gmail alone is supporting evidence and is not enough.
+ * The gate is always on outside tests. Tests opt in with YOUPI_ENFORCE_OBSERVER_HEALTH=true.
+ * Recovery: the next create succeeds once a heartbeat is fresh. In-flight sessions are not cancelled.
  */
-async function checkUpiServerHealth(ctx, enabledMethods = [], sellingMode = 'OFFLINE', merchantId = '00000000-0000-0000-0000-000000000001') {
+export function observerHealthEnforced() {
+  if (process.env.YOUPI_ENFORCE_OBSERVER_HEALTH === 'true') return true;
+  if (process.env.NODE_ENV === 'test') return false;
+  return true;
+}
+
+export function upiObserversAcceptingPayments(health) {
+  return health?.smsHealthy === true && health?.isFalseNarrative !== true;
+}
+
+/**
+ * Healthy (WORKING) only when both Gmail and an SMS observer are up.
+ * New UPI payments additionally require smsHealthy. Gmail alone does not accept new sessions.
+ */
+export async function checkUpiServerHealth(ctx, enabledMethods = [], sellingMode = 'OFFLINE', merchantId = '00000000-0000-0000-0000-000000000001') {
   // 0. Check False Narrative Dev Switch (Active for 10 minutes from enabling time)
+  const productionLock = process.env.NODE_ENV === 'production' || process.env.YOUPI_MODE === 'production';
   try {
     const merchant = ctx.merchantRepo?.findById ? ctx.merchantRepo.findById(merchantId) : null;
     const falseNarrativeUntil = merchant?.branding?.falseNarrativeUntil;
     const falseNarrativeMode = (merchant?.branding?.falseNarrativeMode || 'GREEN').toUpperCase();
-    if (falseNarrativeUntil && Number(falseNarrativeUntil) > Date.now()) {
+    if (!productionLock && falseNarrativeUntil && Number(falseNarrativeUntil) > Date.now()) {
       const remainingSeconds = Math.max(0, Math.round((Number(falseNarrativeUntil) - Date.now()) / 1000));
       if (falseNarrativeMode === 'GREEN') {
         return {
@@ -235,8 +264,8 @@ async function checkUpiServerHealth(ctx, enabledMethods = [], sellingMode = 'OFF
 
   if (!smsHealthy) {
     try {
-      const smsPort = Number(process.env.SMS_OBSERVER_PORT || 6002);
-      const res = await fetch(`http://127.0.0.1:${smsPort}/api/browser/status`, {
+      const smsBaseUrl = process.env.SMS_OBSERVER_URL || `http://127.0.0.1:${process.env.SMS_OBSERVER_PORT || 6002}`;
+      const res = await fetch(new URL('/api/browser/status', smsBaseUrl), {
           headers: { 'Authorization': `Bearer ${getObserverToken()}` },
           signal: AbortSignal.timeout(800)
         });
@@ -260,10 +289,10 @@ async function checkUpiServerHealth(ctx, enabledMethods = [], sellingMode = 'OFF
 
     if (hasRefreshToken || hasApiKey) {
       let pollerActive = false;
-      const gmailPort = Number(process.env.GMAIL_OBSERVER_PORT || 6003);
+      const gmailBaseUrl = process.env.GMAIL_OBSERVER_URL || `http://127.0.0.1:${process.env.GMAIL_OBSERVER_PORT || 6003}`;
 
       try {
-        const res = await fetch(`http://127.0.0.1:${gmailPort}/health`, { signal: AbortSignal.timeout(800) });
+        const res = await fetch(new URL('/health', gmailBaseUrl), { signal: AbortSignal.timeout(800) });
         if (res.ok) {
           const data = await res.json();
           if (data.status === 'UP') {
@@ -274,7 +303,7 @@ async function checkUpiServerHealth(ctx, enabledMethods = [], sellingMode = 'OFF
 
       if (!pollerActive) {
         try {
-          const res = await fetch(`http://127.0.0.1:${gmailPort}/api/browser/status`, {
+          const res = await fetch(new URL('/api/browser/status', gmailBaseUrl), {
           headers: { 'Authorization': `Bearer ${getObserverToken()}` },
           signal: AbortSignal.timeout(800)
         });
@@ -308,8 +337,8 @@ async function checkUpiServerHealth(ctx, enabledMethods = [], sellingMode = 'OFF
     } else {
       // Check if browser-based Gmail automator is actively logged in
       try {
-        const gmailPort = Number(process.env.GMAIL_OBSERVER_PORT || 6003);
-        const res = await fetch(`http://127.0.0.1:${gmailPort}/api/browser/status`, {
+        const gmailBaseUrl = process.env.GMAIL_OBSERVER_URL || `http://127.0.0.1:${process.env.GMAIL_OBSERVER_PORT || 6003}`;
+        const res = await fetch(new URL('/api/browser/status', gmailBaseUrl), {
           headers: { 'Authorization': `Bearer ${getObserverToken()}` },
           signal: AbortSignal.timeout(800)
         });
@@ -432,7 +461,7 @@ export function registerCheckoutRoutes(server, ctx) {
     }
 
     // Terminal session handling: if session is terminal, return terminal state directly (CASE 4)
-    if ([PaymentStatus.SUCCESS, PaymentStatus.FAILED, PaymentStatus.EXPIRED, PaymentStatus.CANCELLED].includes(session.status)) {
+    if ([PaymentStatus.SUCCESS, PaymentStatus.OBSERVED_SUCCESS, PaymentStatus.RECONCILED, PaymentStatus.MANUAL_REVIEW, PaymentStatus.FAILED, PaymentStatus.EXPIRED, PaymentStatus.CANCELLED].includes(session.status)) {
       const merchant = ctx.merchantRepo.findById(session.merchantId);
       const branding = sanitizePublicBranding(merchant?.branding || {});
       HttpServer.json(res, 200, {
@@ -443,6 +472,9 @@ export function registerCheckoutRoutes(server, ctx) {
         amountPaise: session.amountPaise.toString(),
         currency: session.currency,
         status: session.status,
+        method: session.method,
+        verificationTag: session.verificationTag || 'UNVERIFIED',
+        returnUrl: session.returnUrl || null,
         timeRemainingSeconds: 0,
         isTerminal: true,
         // The return URL belongs to the terminal payload too. The checkout
@@ -840,7 +872,7 @@ export function registerCheckoutRoutes(server, ctx) {
     let queueResult = { status: session.status, queuePosition: session.queuePosition, expiresAt: session.expiresAt };
     const targetAccountId = session.receivingAccountId || ctx.accountRepo?.findActiveForMerchant(session.merchantId)?.id || session.metadata?.receivingAccountSnapshot?.id;
     if (!hasActiveSessionConflict && session.status === PaymentStatus.INITIATED && targetAccountId) {
-      queueResult = ctx.queueEngine.enqueueOrActivate(session.id, targetAccountId);
+      queueResult = ctx.queueEngine.enqueueOrActivate(session.id, targetAccountId, ctx.timingEngine?.activeDurationMs || 300000);
       if (queueResult.expiresAt) {
         ctx.timingEngine.startActiveTimer(session.id, queueResult.expiresAt);
       }
@@ -909,7 +941,7 @@ export function registerCheckoutRoutes(server, ctx) {
       return;
     }
 
-    if ([PaymentStatus.SUCCESS, PaymentStatus.FAILED, PaymentStatus.EXPIRED, PaymentStatus.CANCELLED].includes(session.status)) {
+    if (CLOSED_CHECKOUT_STATES.includes(session.status)) {
       HttpServer.json(res, 400, { error: `Cannot retry payment for terminal session in status '${session.status}'` });
       return;
     }
@@ -975,7 +1007,7 @@ export function registerCheckoutRoutes(server, ctx) {
     // Now activate current session immediately on the newly freed slot
     let queueResult = { status: session.status, queuePosition: session.queuePosition, expiresAt: session.expiresAt };
     if (targetAccountId) {
-      queueResult = ctx.queueEngine.enqueueOrActivate(session.id, targetAccountId);
+      queueResult = ctx.queueEngine.enqueueOrActivate(session.id, targetAccountId, ctx.timingEngine?.activeDurationMs || 300000);
       if (queueResult.expiresAt) {
         ctx.timingEngine.startActiveTimer(session.id, queueResult.expiresAt);
       }
@@ -1076,7 +1108,7 @@ export function registerCheckoutRoutes(server, ctx) {
       return;
     }
 
-    if ([PaymentStatus.SUCCESS, PaymentStatus.FAILED, PaymentStatus.EXPIRED, PaymentStatus.CANCELLED].includes(session.status)) {
+    if (CLOSED_CHECKOUT_STATES.includes(session.status)) {
       HttpServer.json(res, 200, {
         paymentId: session.id,
         status: session.status
@@ -1135,7 +1167,7 @@ export function registerCheckoutRoutes(server, ctx) {
       return;
     }
 
-    if ([PaymentStatus.SUCCESS, PaymentStatus.FAILED, PaymentStatus.EXPIRED, PaymentStatus.CANCELLED].includes(session.status)) {
+    if (CLOSED_CHECKOUT_STATES.includes(session.status)) {
       HttpServer.json(res, 400, { error: `Cannot switch payment method for session in status '${session.status}'` });
       return;
     }
@@ -1357,7 +1389,7 @@ export function registerCheckoutRoutes(server, ctx) {
       return;
     }
 
-    if ([PaymentStatus.SUCCESS, PaymentStatus.FAILED, PaymentStatus.EXPIRED, PaymentStatus.CANCELLED].includes(session.status)) {
+    if (CLOSED_CHECKOUT_STATES.includes(session.status)) {
       HttpServer.json(res, 400, { error: `Cannot place COD order for terminal session in status '${session.status}'` });
       return;
     }
@@ -1695,13 +1727,18 @@ export function registerCheckoutRoutes(server, ctx) {
     // merchant's order reference, and the unique (merchant_id, order_id) index rejects a
     // second row for an order that already succeeded — which surfaced as a 500. Refuse with a
     // clear conflict instead of attempting the duplicate.
-    const paidSession = [sourceSession, targetSession, session].find(s => s && s.status === PaymentStatus.SUCCESS);
+    const paidSession = [sourceSession, targetSession, session].find(s => s && (
+      s.status === PaymentStatus.SUCCESS
+      || s.status === PaymentStatus.OBSERVED_SUCCESS
+      || s.status === PaymentStatus.RECONCILED
+      || s.status === PaymentStatus.MANUAL_REVIEW
+    ));
     if (paidSession) {
       HttpServer.json(res, 409, {
         error: 'ORDER_ALREADY_PAID',
-        message: 'This order has already been paid and cannot be restarted.',
+        message: 'This order is already closed and cannot be restarted.',
         orderId: paidSession.orderId,
-        status: PaymentStatus.SUCCESS
+        status: paidSession.status
       });
       return;
     }
@@ -1767,11 +1804,7 @@ export function registerCheckoutRoutes(server, ctx) {
     // 1. Identify ALL sessions on old/other devices that must be cancelled (excluding PROCESSING and terminal states)
     const NON_CANCELLABLE_STATES = [
       PaymentStatus.PROCESSING,
-      PaymentStatus.CANCELLED,
-      PaymentStatus.EXPIRED,
-      PaymentStatus.FAILED,
-      PaymentStatus.SUCCESS,
-      PaymentStatus.SUSPICIOUS
+      ...CLOSED_CHECKOUT_STATES
     ];
     const sessionsToTerminate = new Map();
 
@@ -1944,7 +1977,7 @@ export function registerCheckoutRoutes(server, ctx) {
     // 7. Enqueue or activate new session if UPI
     let queueResult = { status: newSession.status, queuePosition: 0, expiresAt: null };
     if (newSession.receivingAccountId && (String(newSession.method).toUpperCase() === 'UPI' || !newSession.method)) {
-      queueResult = ctx.queueEngine.enqueueOrActivate(newSession.id, newSession.receivingAccountId);
+      queueResult = ctx.queueEngine.enqueueOrActivate(newSession.id, newSession.receivingAccountId, ctx.timingEngine?.activeDurationMs || 300000);
       if (queueResult.expiresAt && ctx.timingEngine) {
         ctx.timingEngine.startActiveTimer(newSession.id, queueResult.expiresAt);
       }

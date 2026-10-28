@@ -111,7 +111,7 @@ describe('Google Messages / SMS Payment Observer Integration Tests', () => {
 
       // 2. Process incoming SMS alert via SMS Observer
       const result = await smsInstance.service.processSms({
-        text: 'A/C 1234 credited with Rs. 499.00 on 08-Sep-2026. Ref: UTR-SMS-499 from payer@upi',
+        text: 'A/C 1234 credited with Rs. 499.00 on 08-Sep-2026. Ref: 987654321099 from payer@upi',
         sender: 'VM-ICICIB'
       });
 
@@ -119,11 +119,11 @@ describe('Google Messages / SMS Payment Observer Integration Tests', () => {
       assert.equal(result.accepted, true);
       assert.equal(result.attribution.attributed, true);
       assert.equal(result.attribution.paymentSessionId, session.id);
-      assert.equal(result.attribution.outcomeStatus, PaymentStatus.SUCCESS);
+      assert.equal(result.attribution.outcomeStatus, PaymentStatus.OBSERVED_SUCCESS);
 
       // 3. Verify session in DB updated to SUCCESS
       const updated = apiInstance.app.context.sessionRepo.findById(session.id);
-      assert.equal(updated.status, PaymentStatus.SUCCESS);
+      assert.equal(updated.status, PaymentStatus.OBSERVED_SUCCESS);
     });
   });
 });

@@ -262,4 +262,49 @@ describe('@youpi/db Unit & Integration Tests', () => {
       assert.equal(logs[0].details.queuePosition, 0);
     });
   });
+
+  describe('Phase 9D Migration Correctness & Invariants', () => {
+    test('runMigrations halts safely when existing table has conflicting active sessions', () => {
+      const legacyDb = new Database({ inMemory: true });
+      const { defaultMerchant } = runMigrations(legacyDb);
+      const acct = new ReceivingAccountRepository(legacyDb).findActiveForMerchant(defaultMerchant.id);
+
+      // Simulate a pre-9C database by dropping idx_single_active_session
+      legacyDb.exec("DROP INDEX IF EXISTS idx_single_active_session;");
+      legacyDb.exec("DROP INDEX IF EXISTS idx_one_slot_per_receiving_account;");
+
+      // Insert duplicate ACTIVE sessions on the same receiving account
+      legacyDb.run(`
+        INSERT INTO payment_sessions (id, merchant_id, receiving_account_id, order_id, amount_paise, status)
+        VALUES ('s1', ?, ?, 'ord1', 1000, 'ACTIVE')
+      `, [defaultMerchant.id, acct.id]);
+      legacyDb.run(`
+        INSERT INTO payment_sessions (id, merchant_id, receiving_account_id, order_id, amount_paise, status)
+        VALUES ('s2', ?, ?, 'ord2', 2000, 'ACTIVE')
+      `, [defaultMerchant.id, acct.id]);
+
+      // Running migrations must throw explicit preflight error
+      assert.throws(() => {
+        runMigrations(legacyDb);
+      }, /Cannot apply idx_single_active_session: Detected 1 receiving account\(s\) with multiple active\/processing sessions/);
+
+      // Resolve the conflict by marking one as EXPIRED
+      legacyDb.run("UPDATE payment_sessions SET status = 'EXPIRED' WHERE id = 's1'");
+
+      // Now running migrations must succeed and apply the index
+      assert.doesNotThrow(() => {
+        runMigrations(legacyDb);
+      });
+
+      // Verify the index is active: attempting to insert another ACTIVE session for acct.id throws UNIQUE constraint
+      assert.throws(() => {
+        legacyDb.run(`
+          INSERT INTO payment_sessions (id, merchant_id, receiving_account_id, order_id, amount_paise, status)
+          VALUES ('s3', ?, ?, 'ord3', 3000, 'ACTIVE')
+        `, [defaultMerchant.id, acct.id]);
+      }, /UNIQUE constraint failed/);
+
+      legacyDb.close();
+    });
+  });
 });

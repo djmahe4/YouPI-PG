@@ -180,8 +180,8 @@ export function registerAdminRoutes(server, ctx) {
     // Query live Google Messages browser automator status
     let smsStatus = { status: 'STANDBY', isPaired: false, messagesObserved: 0, isRunning: false };
     try {
-      const smsPort = Number(process.env.SMS_OBSERVER_PORT || 6002);
-      const smsRes = await fetch(`http://localhost:${smsPort}/api/browser/status`, {
+      const smsBaseUrl = process.env.SMS_OBSERVER_URL || `http://localhost:${process.env.SMS_OBSERVER_PORT || 6002}`;
+      const smsRes = await fetch(new URL('/api/browser/status', smsBaseUrl), {
         headers: { Authorization: `Bearer ${getObserverToken()}` },
         signal: AbortSignal.timeout(1500)
       });
@@ -193,8 +193,8 @@ export function registerAdminRoutes(server, ctx) {
     // Query live Gmail browser automator status
     let gmailStatus = { status: 'STANDBY', isLoggedIn: false, emailsObserved: 0, isRunning: false };
     try {
-      const gmailPort = Number(process.env.GMAIL_OBSERVER_PORT || 6003);
-      const gmailRes = await fetch(`http://localhost:${gmailPort}/api/browser/status`, {
+      const gmailBaseUrl = process.env.GMAIL_OBSERVER_URL || `http://localhost:${process.env.GMAIL_OBSERVER_PORT || 6003}`;
+      const gmailRes = await fetch(new URL('/api/browser/status', gmailBaseUrl), {
         headers: { Authorization: `Bearer ${getObserverToken()}` },
         signal: AbortSignal.timeout(1500)
       });
@@ -267,6 +267,62 @@ export function registerAdminRoutes(server, ctx) {
     }
     const ticket = ctx.ticketRepo.updateTicketStatus(params.id, 'RESOLVED');
     HttpServer.json(res, 200, { success: true, ticket });
+  });
+
+  // POST /api/v1/admin/payments/:id/confirm (Manual reconciliation for payments pending verification)
+  server.post('/api/v1/admin/payments/:id/confirm', async (req, res, params) => {
+    const paymentId = params.id;
+    const body = await HttpServer.parseBody(req).catch(() => ({}));
+    const operatorId = body.operatorId || 'admin-operator';
+    const notes = body.notes || 'Manually reconciled by admin';
+
+    const session = ctx.sessionRepo.findById(paymentId);
+    if (!session) {
+      HttpServer.json(res, 404, { error: `Payment session not found: ${paymentId}` });
+      return;
+    }
+
+    if ([PaymentStatus.SUCCESS, PaymentStatus.FAILED, PaymentStatus.EXPIRED, PaymentStatus.CANCELLED].includes(session.status)) {
+      HttpServer.json(res, 409, { error: `Cannot confirm a payment in terminal status '${session.status}'.` });
+      return;
+    }
+
+    const updated = ctx.sessionRepo.transitionToTerminal(paymentId, PaymentStatus.SUCCESS);
+
+    if (ctx.auditRepo) {
+      ctx.auditRepo.log({
+        merchantId: session.merchantId,
+        entityType: 'PAYMENT_SESSION',
+        entityId: paymentId,
+        action: 'PAYMENT_MANUALLY_RECONCILED',
+        actorType: AuditActorType.ADMIN,
+        actorId: operatorId,
+        details: { operatorId, notes, previousStatus: session.status }
+      });
+    }
+
+    server.broadcastSse(paymentId, 'status_change', {
+      status: PaymentStatus.SUCCESS,
+      method: session.method,
+      orderId: session.orderId
+    });
+
+    if (ctx.eventEmitter) {
+      ctx.eventEmitter.emit('PAYMENT.SUCCESS', {
+        paymentId: updated.id,
+        orderId: session.orderId,
+        merchantId: session.merchantId,
+        amountPaise: session.amountPaise
+      });
+    }
+
+    HttpServer.json(res, 200, {
+      success: true,
+      confirmed: true,
+      paymentId,
+      status: PaymentStatus.SUCCESS,
+      reconciledBy: operatorId
+    });
   });
 
   // POST /api/v1/admin/counter-confirm
@@ -660,6 +716,8 @@ export function registerAdminRoutes(server, ctx) {
 
     HttpServer.json(res, 200, {
       merchantId: merchant.id,
+      publishableKey: merchant.id,
+      merchantKey: merchant.merchantKey || branding.merchantApiKey || merchant.webhookSecret || '',
       businessName: merchant.businessName,
       upiId: account ? account.upiId : '',
       payeeName: account ? account.payeeName : merchant.businessName,
@@ -670,18 +728,18 @@ export function registerAdminRoutes(server, ctx) {
       privacyPolicyUrl,
       sellingMode,
       branding: {
-        appName: branding.appName || 'YOUPI PG',
-        primaryColor: branding.primaryColor || '#2563eb',
+        appName: branding.appName || (process.env.DEFAULT_APP_NAME || '').trim() || 'YOUPI PG',
+        primaryColor: branding.primaryColor || (process.env.DEFAULT_PRIMARY_COLOR || '').trim() || '#2563eb',
         headerTheme: branding.headerTheme || 'gradient',
-        logoUrl: branding.logoUrl || null,
+        logoUrl: branding.logoUrl !== undefined ? branding.logoUrl : ((process.env.DEFAULT_LOGO_URL || '').trim() || null),
         sidebarNotice: branding.sidebarNotice || 'Fast & Secure 256-Bit Encrypted Payments',
         subbannerText: branding.subbannerText || null,
-        trustBadgeText: branding.trustBadgeText || null,
+        trustBadgeText: branding.trustBadgeText || (process.env.DEFAULT_TRUST_BADGE_TEXT || '').trim() || null,
         hideTrustBadge: Boolean(branding.hideTrustBadge),
         hideSubbanner: Boolean(branding.hideSubbanner),
-        hidePoweredBy: Boolean(branding.hidePoweredBy),
+        hidePoweredBy: branding.hidePoweredBy !== undefined ? Boolean(branding.hidePoweredBy) : (process.env.DEFAULT_HIDE_POWERED_BY === 'true'),
         hideTimeSavingBanner: Boolean(branding.hideTimeSavingBanner),
-        footerGuarantee: branding.footerGuarantee || 'Secured by YOUPI PG 256-Bit Encryption',
+        footerGuarantee: branding.footerGuarantee || (process.env.DEFAULT_FOOTER_GUARANTEE || '').trim() || `Secured by ${branding.appName || (process.env.DEFAULT_APP_NAME || '').trim() || 'YOUPI PG'} 256-Bit Encryption`,
         counterInstructions: branding.counterInstructions || 'Please visit the store billing counter and present this screen to the cashier.',
         cardCounterInstructions: branding.cardCounterInstructions || 'Please swipe, insert, or tap your credit or debit card on the store POS terminal at the billing desk.',
         termsUrl: branding.termsUrl || null,
@@ -735,9 +793,9 @@ export function registerAdminRoutes(server, ctx) {
     const inputBranding = body.branding || {};
     const mergedBranding = { ...currentBranding };
 
-    if (inputBranding.appName !== undefined) mergedBranding.appName = inputBranding.appName.trim() || currentBranding.appName || 'YOUPI PG';
+    if (inputBranding.appName !== undefined) mergedBranding.appName = inputBranding.appName.trim() || currentBranding.appName || (process.env.DEFAULT_APP_NAME || '').trim() || 'YOUPI PG';
     if (inputBranding.logoUrl !== undefined) mergedBranding.logoUrl = inputBranding.logoUrl ? inputBranding.logoUrl.trim() : null;
-    if (inputBranding.primaryColor !== undefined) mergedBranding.primaryColor = inputBranding.primaryColor.trim() || currentBranding.primaryColor || '#2563eb';
+    if (inputBranding.primaryColor !== undefined) mergedBranding.primaryColor = inputBranding.primaryColor.trim() || currentBranding.primaryColor || (process.env.DEFAULT_PRIMARY_COLOR || '').trim() || '#2563eb';
     if (inputBranding.sidebarNotice !== undefined) mergedBranding.sidebarNotice = inputBranding.sidebarNotice ? inputBranding.sidebarNotice.trim() : null;
     if (inputBranding.headerTheme !== undefined) mergedBranding.headerTheme = inputBranding.headerTheme || 'gradient';
     if (inputBranding.subbannerText !== undefined) mergedBranding.subbannerText = inputBranding.subbannerText ? inputBranding.subbannerText.trim() : null;
@@ -821,6 +879,104 @@ export function registerAdminRoutes(server, ctx) {
     });
   });
 
+  // GET /api/v1/admin/merchants (List all registered merchants)
+  server.get('/api/v1/admin/merchants', async (req, res) => {
+    const merchants = ctx.merchantRepo.findAll();
+    const list = merchants.map(m => ({
+      id: m.id,
+      businessName: m.businessName,
+      slug: m.slug,
+      contactEmail: m.contactEmail,
+      contactPhone: m.contactPhone,
+      webhookUrl: m.webhookUrl,
+      apiKeyConfigured: Boolean(m.apiKeyHash),
+      createdAt: m.createdAt,
+      updatedAt: m.updatedAt
+    }));
+    HttpServer.json(res, 200, { merchants: list });
+  });
+
+  // POST /api/v1/admin/merchants (Create/Onboard a new merchant)
+  server.post('/api/v1/admin/merchants', async (req, res) => {
+    const body = await HttpServer.parseBody(req);
+    if (!body.businessName || !body.businessName.trim()) {
+      HttpServer.json(res, 400, { error: 'businessName is required' });
+      return;
+    }
+    const businessName = body.businessName.trim();
+    const slugCandidate = body.slug?.trim() || businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const slug = slugCandidate || `merchant-${crypto.randomBytes(4).toString('hex')}`;
+
+    const existing = ctx.merchantRepo.findBySlug(slug);
+    if (existing) {
+      HttpServer.json(res, 409, { error: `Merchant with slug '${slug}' already exists` });
+      return;
+    }
+
+    if (body.webhookUrl) {
+      const check = validateOutboundWebhookUrl(body.webhookUrl);
+      if (!check.valid) {
+        HttpServer.json(res, 400, { error: check.error });
+        return;
+      }
+    }
+
+    const rawApiKey = body.apiKey?.trim() || `yp_live_${crypto.randomBytes(16).toString('hex')}`;
+    const rawWebhookSecret = body.webhookSecret?.trim() || crypto.randomBytes(32).toString('hex');
+
+    const merchant = ctx.merchantRepo.create({
+      businessName,
+      slug,
+      contactEmail: body.contactEmail?.trim() || '',
+      contactPhone: body.contactPhone?.trim() || '',
+      webhookUrl: body.webhookUrl?.trim() || null,
+      webhookSecret: rawWebhookSecret,
+      apiKey: rawApiKey
+    });
+
+    if (body.upiId || body.vpa) {
+      const upiCandidate = String(body.upiId || body.vpa).trim();
+      if (isValidVpa(upiCandidate)) {
+        ctx.accountRepo.create({
+          merchantId: merchant.id,
+          upiId: upiCandidate,
+          payeeName: businessName,
+          isActive: true
+        });
+      }
+    }
+
+    HttpServer.json(res, 201, {
+      merchant: {
+        id: merchant.id,
+        businessName: merchant.businessName,
+        slug: merchant.slug,
+        contactEmail: merchant.contactEmail,
+        contactPhone: merchant.contactPhone,
+        webhookUrl: merchant.webhookUrl,
+        apiKey: rawApiKey,
+        webhookSecret: rawWebhookSecret,
+        createdAt: merchant.createdAt
+      }
+    });
+  });
+
+  // POST /api/v1/admin/merchants/:id/rotate-key (Rotate API key for a merchant)
+  server.post('/api/v1/admin/merchants/:id/rotate-key', async (req, res, params) => {
+    const merchant = ctx.merchantRepo.findById(params.id);
+    if (!merchant) {
+      HttpServer.json(res, 404, { error: 'Merchant not found' });
+      return;
+    }
+    const newApiKey = `yp_live_${crypto.randomBytes(16).toString('hex')}`;
+    ctx.merchantRepo.update(merchant.id, { apiKey: newApiKey });
+    HttpServer.json(res, 200, {
+      merchantId: merchant.id,
+      apiKey: newApiKey,
+      message: 'Merchant API key successfully rotated'
+    });
+  });
+
   // GET /api/v1/admin/merchant-settings
   server.get('/api/v1/admin/merchant-settings', async (req, res) => {
     let merchant = req.query.merchantId ? ctx.merchantRepo.findById(req.query.merchantId) : (req.headers['x-merchant-id'] ? ctx.merchantRepo.findById(req.headers['x-merchant-id']) : null);
@@ -862,11 +1018,15 @@ export function registerAdminRoutes(server, ctx) {
 
     HttpServer.json(res, 200, {
       merchantId: merchant.id,
+      publishableKey: merchant.id,
+      merchantKey: merchant.merchantKey || branding.merchantApiKey || merchant.webhookSecret || '',
       businessName: merchant.businessName,
       contactEmail: merchant.contactEmail,
       contactPhone: merchant.contactPhone,
       webhookUrl: merchant.webhookUrl,
       webhookSecret: merchant.webhookSecret,
+      slug: merchant.slug,
+      apiKeyConfigured: Boolean(merchant.apiKeyHash),
       supportEmails,
       supportMobiles,
       privacyPolicyUrl,
@@ -952,9 +1112,9 @@ export function registerAdminRoutes(server, ctx) {
       const currentBranding = merchant.branding || {};
       const mergedBranding = { ...currentBranding };
 
-      if (inputBranding.appName !== undefined) mergedBranding.appName = inputBranding.appName.trim() || currentBranding.appName || 'YOUPI PG';
+      if (inputBranding.appName !== undefined) mergedBranding.appName = inputBranding.appName.trim() || currentBranding.appName || (process.env.DEFAULT_APP_NAME || '').trim() || 'YOUPI PG';
       if (inputBranding.logoUrl !== undefined) mergedBranding.logoUrl = inputBranding.logoUrl ? inputBranding.logoUrl.trim() : null;
-      if (inputBranding.primaryColor !== undefined) mergedBranding.primaryColor = inputBranding.primaryColor.trim() || currentBranding.primaryColor || '#2563eb';
+      if (inputBranding.primaryColor !== undefined) mergedBranding.primaryColor = inputBranding.primaryColor.trim() || currentBranding.primaryColor || (process.env.DEFAULT_PRIMARY_COLOR || '').trim() || '#2563eb';
       if (inputBranding.headerTheme !== undefined) mergedBranding.headerTheme = inputBranding.headerTheme || 'gradient';
       if (inputBranding.sidebarNotice !== undefined) mergedBranding.sidebarNotice = inputBranding.sidebarNotice ? inputBranding.sidebarNotice.trim() : null;
       if (inputBranding.subbannerText !== undefined) mergedBranding.subbannerText = inputBranding.subbannerText ? inputBranding.subbannerText.trim() : null;
@@ -1049,6 +1209,8 @@ export function registerAdminRoutes(server, ctx) {
     HttpServer.json(res, 200, {
       success: true,
       merchantId: updated.id,
+      publishableKey: updated.id,
+      merchantKey: updated.merchantKey || updated.branding?.merchantApiKey || updated.webhookSecret || '',
       businessName: updated.businessName,
       webhookUrl: updated.webhookUrl || '',
       webhookSecret: updated.webhookSecret || '',
@@ -1067,6 +1229,75 @@ export function registerAdminRoutes(server, ctx) {
       cloudflareTunnelCommand: updated.branding?.cloudflareTunnelCommand || '',
       tunnelStatus: globalTunnelManager.getStatus(),
       branding: updated.branding
+    });
+  });
+
+  // POST /api/v1/admin/merchant-key/rotate (Generate / Rotate Secret Merchant API Key)
+  server.post('/api/v1/admin/merchant-key/rotate', async (req, res) => {
+    const body = await HttpServer.parseBody(req).catch(() => ({}));
+    const merchant = resolveMerchant(req, body.merchantId);
+    if (!merchant) {
+      HttpServer.json(res, 404, { error: 'Merchant not found' });
+      return;
+    }
+
+    const rotated = typeof ctx.merchantRepo.rotateApiKey === 'function'
+      ? ctx.merchantRepo.rotateApiKey(merchant.id)
+      : (() => {
+        const newKey = `mk_live_${crypto.randomBytes(24).toString('hex')}`;
+        const updated = ctx.merchantRepo.update(merchant.id, {
+          apiKey: newKey,
+          branding: { ...(merchant.branding || {}), merchantApiKey: newKey }
+        });
+        return { ...updated, merchantKey: newKey };
+      })();
+
+    ctx.auditRepo.log({
+      merchantId: merchant.id,
+      entityType: 'MERCHANT',
+      entityId: merchant.id,
+      action: 'MERCHANT_API_KEY_ROTATED',
+      actorType: AuditActorType.ADMIN,
+      details: { merchantId: merchant.id }
+    });
+
+    HttpServer.json(res, 200, {
+      success: true,
+      merchantId: rotated.id,
+      publishableKey: rotated.id,
+      merchantKey: rotated.merchantKey
+    });
+  });
+
+  // POST /api/v1/admin/webhook-secret/rotate (Generate / Rotate Webhook HMAC Signing Secret)
+  server.post('/api/v1/admin/webhook-secret/rotate', async (req, res) => {
+    const body = await HttpServer.parseBody(req).catch(() => ({}));
+    const merchant = resolveMerchant(req, body.merchantId);
+    if (!merchant) {
+      HttpServer.json(res, 404, { error: 'Merchant not found' });
+      return;
+    }
+
+    const newWebhookSecret = `whsec_${crypto.randomBytes(24).toString('hex')}`;
+    const existingApiKey = merchant.branding?.merchantApiKey;
+    const updated = ctx.merchantRepo.update(merchant.id, {
+      webhookSecret: newWebhookSecret,
+      ...(existingApiKey ? { apiKey: existingApiKey } : {})
+    });
+
+    ctx.auditRepo.log({
+      merchantId: merchant.id,
+      entityType: 'MERCHANT',
+      entityId: merchant.id,
+      action: 'MERCHANT_WEBHOOK_SECRET_ROTATED',
+      actorType: AuditActorType.ADMIN,
+      details: { merchantId: merchant.id }
+    });
+
+    HttpServer.json(res, 200, {
+      success: true,
+      merchantId: updated.id,
+      webhookSecret: updated.webhookSecret
     });
   });
 
@@ -1545,7 +1776,8 @@ export function registerAdminRoutes(server, ctx) {
 
     // Stop poller in observer service
     try {
-      await fetch(`http://127.0.0.1:${process.env.GMAIL_OBSERVER_PORT || 6003}/stop`, { method: 'POST' }).catch(() => {});
+      const gmailBaseUrl = process.env.GMAIL_OBSERVER_URL || `http://127.0.0.1:${process.env.GMAIL_OBSERVER_PORT || 6003}`;
+      await fetch(new URL('/stop', gmailBaseUrl), { method: 'POST' }).catch(() => {});
     } catch {}
 
     HttpServer.json(res, 200, {

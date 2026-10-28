@@ -1,7 +1,8 @@
 import { HttpServer } from '../server.js';
 import { toPaise, toRupeesString, resolveRuntimeUrls, PaymentStatus, safeEqual, verifyHmac } from '@youpi/common';
-import { isTerminalStatus, toPublicOutcome, verifyRegisteredDeviceCredentials } from '@youpi/core';
+import { isTerminalStatus, toPublicOutcome, settlementStateFor, verifyRegisteredDeviceCredentials } from '@youpi/core';
 import { isAdminRequest, isPaymentOwner } from '../auth-guard.js';
+import { checkUpiServerHealth, observerHealthEnforced, upiObserversAcceptingPayments } from './checkout.routes.js';
 
 /**
  * Registers merchant-facing payment routes.
@@ -17,14 +18,25 @@ import { isAdminRequest, isPaymentOwner } from '../auth-guard.js';
  * }} ctx
  */
 export function registerPaymentRoutes(server, ctx) {
+  function resolvePublicDeploymentOrigin() {
+    const configured = process.env.CHECKOUT_PUBLIC_URL || process.env.PUBLIC_APP_URL;
+    if (configured) return configured.replace(/\/+$/, '');
+    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+    return null;
+  }
+
   function resolveCheckoutBaseUrl(merchant) {
+    // Service bindings are private and must never be returned to a browser.
+    // On Vercel, build checkout links from the public deployment origin instead.
+    const publicOrigin = resolvePublicDeploymentOrigin();
+    if (publicOrigin) return publicOrigin;
     if (merchant?.branding) {
       try {
         const urls = resolveRuntimeUrls(merchant.branding);
         if (urls && urls.checkoutUrl) return urls.checkoutUrl;
       } catch {}
     }
-    return ctx.checkoutBaseUrl || 'http://localhost:7000';
+    return ctx.checkoutBaseUrl || resolvePublicDeploymentOrigin() || 'http://localhost:7000';
   }
 
   // POST /api/v1/payments
@@ -33,10 +45,31 @@ export function registerPaymentRoutes(server, ctx) {
     const idempotencyKey = req.headers['idempotency-key'] || body.idempotencyKey;
 
     // Resolve merchant (default to first/demo merchant if none passed in header)
-    const merchantId = req.headers['x-merchant-id'] || body.merchantId;
-    let merchant;
-    if (merchantId) {
-      merchant = ctx.merchantRepo.findById(merchantId);
+    const rawMerchantId = (req.headers['x-merchant-id'] || body.merchantId || '').toString().trim();
+    const docPlaceholders = new Set([
+      'YOUR_MERCHANT_KEY',
+      'YOUR_MERCHANT_PUBLIC_KEY',
+      'YOUR_PUBLIC_KEY',
+      'MERCHANT_PUBLIC_KEY',
+      'YOUR_MERCHANT_ID'
+    ]);
+    let merchant = null;
+    let matchedViaApiKeyInMerchantId = false;
+
+    if (rawMerchantId && !docPlaceholders.has(rawMerchantId.toUpperCase())) {
+      merchant = ctx.merchantRepo.findById(rawMerchantId);
+      if (!merchant && typeof ctx.merchantRepo.findBySlug === 'function') {
+        merchant = ctx.merchantRepo.findBySlug(rawMerchantId);
+      }
+      if (!merchant && typeof ctx.merchantRepo.verifyApiKey === 'function') {
+        // Support developers who put their secret Merchant API Key (`mk_live_...` / webhookSecret) into `data-youpi-key` / `X-Merchant-Id`
+        const allMerchants = ctx.merchantRepo.findAll();
+        const byKey = allMerchants.find(m => ctx.merchantRepo.verifyApiKey(m, rawMerchantId));
+        if (byKey) {
+          merchant = byKey;
+          matchedViaApiKeyInMerchantId = true;
+        }
+      }
     } else {
       merchant = ctx.merchantRepo.getDefault ? ctx.merchantRepo.getDefault() : (ctx.merchantRepo.findById('00000000-0000-0000-0000-000000000001') || ctx.merchantRepo.findAll()[0]);
     }
@@ -46,7 +79,9 @@ export function registerPaymentRoutes(server, ctx) {
       return;
     }
 
-    const presentedMerchantKey = req.headers['x-merchant-key'] || body.merchantKey;
+    const presentedMerchantKey = req.headers['x-merchant-key'] !== undefined
+      ? req.headers['x-merchant-key']
+      : (body.merchantKey !== undefined ? body.merchantKey : (matchedViaApiKeyInMerchantId ? rawMerchantId : undefined));
     const presentedOrderToken = req.headers['x-order-token'] || body.orderToken;
 
     if (presentedMerchantKey !== undefined && presentedMerchantKey !== null) {
@@ -176,7 +211,10 @@ export function registerPaymentRoutes(server, ctx) {
       }
 
       // If SUCCESS: order is already paid, return existing completed session
-      if (existing.status === PaymentStatus.SUCCESS) {
+      if (existing.status === PaymentStatus.SUCCESS
+        || existing.status === PaymentStatus.OBSERVED_SUCCESS
+        || existing.status === PaymentStatus.RECONCILED
+        || existing.status === PaymentStatus.MANUAL_REVIEW) {
         HttpServer.json(res, 200, {
           paymentId: existing.id,
           orderId: existing.orderId,
@@ -249,6 +287,21 @@ export function registerPaymentRoutes(server, ctx) {
     }
 
     const isCounterPayment = body.method === 'CASH_COUNTER' || body.method === 'CARD_COUNTER';
+    const isCod = body.method === 'COD';
+    if (!isCounterPayment && !isCod && observerHealthEnforced()) {
+      const health = await checkUpiServerHealth(ctx, [], 'ONLINE', merchant.id);
+      if (!upiObserversAcceptingPayments(health)) {
+        HttpServer.json(res, 503, {
+          error: 'UPI observers are offline. New payments are not accepted until the SMS observer heartbeat is fresh.',
+          code: 'OBSERVERS_UNHEALTHY',
+          smsHealthy: Boolean(health.smsHealthy),
+          gmailHealthy: Boolean(health.gmailHealthy),
+          retryAfterSeconds: 60,
+          recovery: 'Pair or reconnect the Android or Google Messages observer. A heartbeat within 5 minutes allows new UPI sessions. In-flight sessions are left to their existing timers.'
+        });
+        return;
+      }
+    }
 
     let receivingAccountId = null;
     let receivingAccountSnapshot = null;
@@ -347,7 +400,8 @@ export function registerPaymentRoutes(server, ctx) {
     // Enqueue or Activate slot via QueueEngine ONLY when counter payment or explicitly requested by automated test runner
     let queueResult = { status: initialStatus, queuePosition: 0, expiresAt: null };
     if (!isCounterPayment && receivingAccountId && shouldActivateNow) {
-      queueResult = ctx.queueEngine.enqueueOrActivate(session.id, receivingAccountId);
+      const activeDurationMs = ctx.timingEngine ? ctx.timingEngine.activeDurationMs : 300000;
+      queueResult = ctx.queueEngine.enqueueOrActivate(session.id, receivingAccountId, activeDurationMs);
 
       // If activated immediately, start Timer 1 (5 minutes)
       if (queueResult.expiresAt) {
@@ -394,6 +448,7 @@ export function registerPaymentRoutes(server, ctx) {
       amountPaise: session.amountPaise.toString(),
       currency: session.currency,
       status: publicStatus,
+      settlementState: settlementStateFor(publicStatus),
       method: session.method,
       completedAt: session.completedAt ? session.completedAt.toISOString() : null
     };

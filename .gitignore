@@ -9,6 +9,8 @@ dist/
 *.tsbuildinfo
 **/*.tsbuildinfo
 .tmp_apk_build/
+reports/*.tar.gz
+reports/*.sha256
 
 # Android & Gradle Build Artifacts
 .gradle/
@@ -38,7 +40,8 @@ data/browser-sessions/
 data/berry_auth/
 data/test_berry_auth/
 data/backups/
-data/whatsapp_session.json
+data/*.json
+!data/.gitkeep
 data/.secrets/
 berrysdk.db*
 .berry-sessions/

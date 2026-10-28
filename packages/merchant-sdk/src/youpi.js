@@ -113,7 +113,7 @@
      */
     constructor(options = {}) {
       const defaultPortal = isBrowser
-        ? (scriptConfig.portalUrl || (window.location.protocol + '//' + window.location.hostname + ':7000'))
+        ? (scriptConfig.portalUrl || window.location.origin)
         : 'http://localhost:7000';
 
       const defaultApi = isBrowser
@@ -471,6 +471,29 @@ _isSafeRedirect(url) {
             }
           });
         }, 1500);
+      } else if (event === 'youpi.payment_observed' || event === 'youpi.payment_reconciled' || event === 'youpi.payment_manual_review') {
+        const payload = e.data.data || {};
+        const status = event === 'youpi.payment_reconciled'
+          ? 'RECONCILED'
+          : (event === 'youpi.payment_manual_review' ? 'MANUAL_REVIEW' : 'OBSERVED_SUCCESS');
+        const result = {
+          status,
+          order_id: payload.orderId || this.options.orderId || this.options.order_id,
+          payment_mode: payload.method || 'UPI',
+          amount_received: Number(payload.amount || this.options.amount || 0),
+          utr: payload.bankRef || payload.utr || payload.reference || '',
+          timestamp: payload.completedAt || new Date().toISOString(),
+          metadata: payload.metadata || this.options.metadata || {},
+          settlement_state: payload.settlementState || (status === 'RECONCILED' ? 'RECONCILED' : (status === 'MANUAL_REVIEW' ? 'MANUAL_REVIEW' : 'NOT_RECONCILED')),
+          raw: payload
+        };
+        const domEvent = status === 'RECONCILED'
+          ? 'youpi:payment:success'
+          : (status === 'MANUAL_REVIEW' ? 'youpi:payment:suspicious' : 'youpi:payment:observed');
+        YoupiCheckout._emitEvent(domEvent, result);
+        YoupiCheckout._emitEvent('youpi:payment:result', result);
+        if (typeof this.options.handler === 'function') this.options.handler(result);
+        if (status === 'RECONCILED' && typeof this.options.onSuccess === 'function') this.options.onSuccess(result);
       } else if (event === 'youpi.payment_failed') {
         const payload = e.data.data || e.data || {};
         const result = {
@@ -787,10 +810,14 @@ _isSafeRedirect(url) {
             border-top-left-radius: 20px !important;
             border-top-right-radius: 20px !important;
             margin: 0 !important;
-            transform: translateY(0) !important;
+            transform: translateY(100%) !important;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
             box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6) !important;
             touch-action: auto !important;
             overflow: hidden !important;
+          }
+          .youpi-checkout-container.active {
+            transform: translateY(0) !important;
           }
           .youpi-checkout-container.closing {
             transform: translateY(100%) !important;

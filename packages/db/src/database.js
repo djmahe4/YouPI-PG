@@ -23,6 +23,28 @@ export function ensureDatabaseInitialized(db) {
   }
 }
 
+export class DatabaseBusyError extends Error {
+  constructor(message = 'Database lock contention timeout after bounded retries', originalError = null) {
+    super(message);
+    this.name = 'DatabaseBusyError';
+    this.code = 'DATABASE_BUSY';
+    this.isRetryable = true;
+    this.originalError = originalError;
+  }
+}
+
+export function isRetryableSqliteError(err) {
+  if (!err) return false;
+  const msg = (err.message || '').toLowerCase();
+  const code = (err.code || '').toUpperCase();
+  return (
+    msg.includes('database is locked') ||
+    msg.includes('busy') ||
+    code === 'SQLITE_BUSY' ||
+    code === 'SQLITE_LOCKED'
+  );
+}
+
 /**
  * Universal Database Client for YOUPI PG.
  * Uses native node:sqlite for high-performance, embedded zero-dependency local operation
@@ -50,14 +72,9 @@ export class Database {
       }
       const dir = path.dirname(dbPath);
       if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+        fs.mkdirSync(dir, { recursive: true });
       }
       this.db = new DatabaseSync(dbPath);
-      // The file holds webhook secrets, session-token indexes, OTPs and customer PII.
-      // Default file creation honours umask, which on many hosts leaves it group/world
-      // readable, so restrict it explicitly.
-      try { fs.chmodSync(dbPath, 0o600); } catch {}
-      try { fs.chmodSync(dir, 0o700); } catch {}
     }
 
     // Enable foreign keys, busy timeout, and WAL mode for maximum concurrency and integrity
@@ -131,29 +148,77 @@ export class Database {
     this.db.exec(sql);
   }
 
+
   /**
    * Executes a callback within an ACID database transaction.
    * Automatically rolls back on exception.
+   * Defaults to BEGIN IMMEDIATE to acquire write intent upfront and avoid lock upgrade deadlocks.
    * @template T
    * @param {() => T} callback
+   * @param {{ mode?: 'DEFERRED' | 'IMMEDIATE' | 'EXCLUSIVE' }} [options={}]
    * @returns {T}
    */
-  transaction(callback) {
-    // IMMEDIATE (not DEFERRED) so the write lock is taken up front. A deferred transaction
-    // starts as a read transaction and only upgrades on first write, which lets two
-    // concurrent slot-acquisition callers both observe a free slot before either writes.
-    this.db.exec('BEGIN IMMEDIATE;');
+  transaction(callback, options = {}) {
+    const mode = options.mode || 'IMMEDIATE';
+    const isNested = (this._transactionDepth || 0) > 0;
+    this._transactionDepth = (this._transactionDepth || 0) + 1;
+    const savepointName = `sp_${this._transactionDepth}`;
+
+    if (isNested) {
+      this.db.exec(`SAVEPOINT ${savepointName};`);
+    } else {
+      this.db.exec(`BEGIN ${mode} TRANSACTION;`);
+    }
+
     try {
       const result = callback();
-      this.db.exec('COMMIT;');
+      if (isNested) {
+        this.db.exec(`RELEASE SAVEPOINT ${savepointName};`);
+      } else {
+        this.db.exec('COMMIT;');
+      }
       return result;
     } catch (err) {
       try {
-        this.db.exec('ROLLBACK;');
+        if (isNested) {
+          this.db.exec(`ROLLBACK TO SAVEPOINT ${savepointName};`);
+        } else {
+          this.db.exec('ROLLBACK;');
+        }
       } catch {
         // Ignore rollback error if already rolled back
       }
       throw err;
+    } finally {
+      this._transactionDepth--;
+    }
+  }
+
+  /**
+   * Executes a database operation with bounded retries and exponential backoff on retryable lock contention.
+   * @template T
+   * @param {() => T} operation
+   * @param {number} [maxRetries=3]
+   * @param {number} [baseDelayMs=50]
+   * @returns {T}
+   */
+  withRetry(operation, maxRetries = 3, baseDelayMs = 50) {
+    let attempt = 0;
+    while (true) {
+      try {
+        return operation();
+      } catch (err) {
+        attempt++;
+        if (attempt > maxRetries || !isRetryableSqliteError(err)) {
+          if (isRetryableSqliteError(err)) {
+            throw new DatabaseBusyError(`Database lock contention after ${attempt} retry attempt(s): ${err.message}`, err);
+          }
+          throw err;
+        }
+        const delay = Math.min(baseDelayMs * Math.pow(2, attempt - 1), 500) + Math.floor(Math.random() * 20);
+        const end = Date.now() + delay;
+        while (Date.now() < end) {}
+      }
     }
   }
 

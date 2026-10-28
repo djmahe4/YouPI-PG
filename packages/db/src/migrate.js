@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
-import { getCoinStoreWebhookSecret, LEGACY_DEFAULT_WEBHOOK_SECRET } from '@youpi/common';
+import { getCoinStoreWebhookSecret, LEGACY_DEFAULT_WEBHOOK_SECRET, resolveDefaultBranding } from '@youpi/common';
 import { getDatabase } from './database.js';
 import { MerchantRepository } from './repositories/merchant.repository.js';
 import { ReceivingAccountRepository } from './repositories/receiving-account.repository.js';
@@ -64,6 +64,27 @@ export function runMigrations(targetDb) {
   try { db.exec("ALTER TABLE payment_sessions ADD COLUMN verification_sources TEXT DEFAULT '[]';"); } catch {}
   try { db.exec("ALTER TABLE payment_sessions ADD COLUMN verification_tag TEXT DEFAULT 'UNVERIFIED';"); } catch {}
 
+  // Phase 9C/9D: Preflight conflict check for existing databases prior to applying DDL / indexes
+  try {
+    const hasSessions = db.query ? db.queryOne("SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name='payment_sessions'") : null;
+    if (hasSessions && Number(hasSessions.count) > 0) {
+      const conflicts = db.query(`
+        SELECT receiving_account_id, COUNT(*) as active_count
+        FROM payment_sessions
+        WHERE status IN ('ACTIVE', 'PROCESSING')
+        GROUP BY receiving_account_id
+        HAVING COUNT(*) > 1
+      `);
+      if (conflicts && conflicts.length > 0) {
+        throw new Error(`[migrate] Cannot apply idx_single_active_session: Detected ${conflicts.length} receiving account(s) with multiple active/processing sessions: ${JSON.stringify(conflicts)}`);
+      }
+    }
+  } catch (err) {
+    if (err.message && err.message.includes('Cannot apply idx_single_active_session')) {
+      throw err;
+    }
+  }
+
   // Execute schema DDL
   db.exec(schemaSql);
 
@@ -123,18 +144,26 @@ export function runMigrations(targetDb) {
 
   let defaultMerchant;
   if (existing.length === 0) {
+    const branding = resolveDefaultBranding();
+    const businessName = process.env.DEFAULT_MERCHANT_NAME || 'YOUPI Demo Store';
+    const slug = process.env.DEFAULT_MERCHANT_SLUG || 'demo-store';
+    const contactEmail = process.env.DEFAULT_SUPPORT_EMAIL || 'merchant@youpi.local';
+    const contactPhone = process.env.DEFAULT_SUPPORT_PHONE || '9876543210';
+
     defaultMerchant = merchantRepo.create({
       id: '00000000-0000-0000-0000-000000000001',
-      businessName: 'YOUPI Demo Store',
-      slug: 'demo-store',
-      contactEmail: 'merchant@youpi.local',
-      contactPhone: '9876543210',
+      businessName,
+      slug,
+      contactEmail,
+      contactPhone,
       webhookUrl: process.env.COIN_STORE_WEBHOOK_URL || 'http://localhost:5000/api/webhook',
       webhookSecret: getCoinStoreWebhookSecret(),
       branding: {
-        appName: 'YOUPI PG',
-        primaryColor: '#2563eb',
-        logoUrl: null
+        appName: branding.appName,
+        primaryColor: branding.primaryColor,
+        logoUrl: branding.logoUrl,
+        trustBadgeText: branding.trustBadgeText,
+        footerGuarantee: branding.footerGuarantee
       }
     });
   } else {

@@ -28,6 +28,7 @@ function requiredLevel(method, pathname) {
     return 'admin';
   }
   if (method === 'POST' && pathname === '/api/v1/pollers/events') return 'observer';
+  if (method === 'GET' && pathname === '/api/v1/pollers/active-window') return 'observer';
   // Injects a synthetic bank message into the real verification pipeline.
   if (method === 'POST' && /^\/api\/v1\/checkout\/[^/]+\/simulate-observation$/.test(pathname)) return 'admin';
   return null;
@@ -55,11 +56,16 @@ export function authGuard(req, res, pathname, url) {
   // travels in the header only.
   const presented = bearerToken(req);
 
-  const ok = presented && (
+  const isBearerOk = presented && (
     safeEqual(presented, getAdminToken()) ||
     (level === 'observer' && safeEqual(presented, getObserverToken()))
   );
-  if (ok) return false;
+
+  // If level is observer and an X-Device-Id is presented, pass to route handler for device verification
+  const deviceId = req.headers['x-device-id'];
+  const isDeviceRequest = level === 'observer' && Boolean(deviceId);
+
+  if (isBearerOk || isDeviceRequest) return false;
 
   HttpServer.json(res, 401, { error: 'Unauthorized', code: 'AUTH_REQUIRED' });
   return true;

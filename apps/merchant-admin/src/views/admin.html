@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Merchant & Supervisor Hub - YOUPI PG</title>
+  <title>Merchant & Supervisor Hub - {{APP_NAME}}</title>
   <script>
     /* Apply saved theme pref (system | light | dark) before first paint to avoid a flash. */
     (function () {
@@ -1200,7 +1200,7 @@
   <header>
     <div class="brand-group">
       <div class="brand-title">
-        <span>🛡️ YOUPI PG</span>
+        <span>🛡️ {{APP_NAME}}</span>
       </div>
       <span class="brand-badge">Merchant &amp; Supervisor Hub</span>
     </div>
@@ -1214,6 +1214,15 @@
         title="Click to 1-Click Enable/Disable YOUPI Showcase Store on Port 5000">
         <span id="headerStoreDot">●</span>
         <span id="headerStoreText">Store (5000): Checking...</span>
+      </div>
+
+      <!-- Merchant Account Switcher -->
+      <div style="display:flex; align-items:center; gap:0.35rem; background:var(--bg-card); padding:0.25rem 0.6rem; border-radius:9999px; border:1px solid var(--border);">
+        <span style="font-size:0.75rem;">🏪</span>
+        <select id="headerMerchantSelector" onchange="onMerchantSwitch(this.value)" style="font-size:0.75rem; font-weight:700; background:transparent; border:none; color:var(--text-main); cursor:pointer; outline:none; max-width:140px;">
+          <option value="00000000-0000-0000-0000-000000000001">Default Store</option>
+        </select>
+        <button type="button" class="btn btn-secondary" onclick="openNewMerchantModal()" style="padding:0.15rem 0.45rem; font-size:0.7rem; border-radius:9999px;" title="Create/Onboard New Merchant">+ New</button>
       </div>
 
       <!-- Active VPA Display -->
@@ -1554,6 +1563,39 @@
 
             <!-- LEFT COLUMN: CONTROLS & SETTINGS -->
             <div>
+              <!-- SECTION 0: MERCHANT CREDENTIALS & INTEGRATION KEYS -->
+              <div class="settings-group-box" style="border:1.5px solid var(--accent); background:rgba(37,99,235,0.03);">
+                <div class="group-box-title" style="display:flex; justify-content:space-between; align-items:center;">
+                  <span>🔑 Merchant ID &amp; API Integration Keys</span>
+                  <button type="button" class="btn btn-primary" onclick="openNewMerchantModal()" style="font-size:0.75rem; padding:0.25rem 0.65rem;">+ New Merchant</button>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+                  <div>
+                    <label style="display:block; font-size:0.82rem; font-weight:700; margin-bottom:0.35rem;">Active Merchant ID (UUID)</label>
+                    <div style="display:flex; gap:0.4rem;">
+                      <input id="settingDisplayMerchantId" type="text" readonly style="width:100%; font-family:monospace; font-size:0.8rem; background:var(--bg-main);" />
+                      <button type="button" class="btn btn-secondary" onclick="copyMerchantId()" style="padding:0.3rem 0.6rem; font-size:0.75rem;" title="Copy Merchant ID">📋</button>
+                    </div>
+                  </div>
+                  <div>
+                    <label style="display:block; font-size:0.82rem; font-weight:700; margin-bottom:0.35rem;">Publishable Key (data-youpi-key)</label>
+                    <div style="display:flex; gap:0.4rem;">
+                      <input id="settingDisplayApiKey" type="text" readonly style="width:100%; font-family:monospace; font-size:0.8rem; background:var(--bg-main);" placeholder="Click Rotate to generate" />
+                      <button type="button" class="btn btn-secondary" onclick="copyMerchantApiKey()" style="padding:0.3rem 0.6rem; font-size:0.75rem;" title="Copy API Key">📋</button>
+                      <button type="button" class="btn btn-secondary" onclick="rotateMerchantApiKey()" style="padding:0.3rem 0.6rem; font-size:0.75rem;" title="Rotate / Generate New Key">🔄</button>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label style="display:block; font-size:0.82rem; font-weight:700; margin-bottom:0.35rem;">Universal 1-Script Integration Snippet</label>
+                  <div style="display:flex; gap:0.4rem;">
+                    <input id="settingIntegrationSnippet" type="text" readonly style="width:100%; font-family:monospace; font-size:0.75rem; background:var(--bg-main); color:var(--text-muted);" />
+                    <button type="button" class="btn btn-secondary" onclick="copyIntegrationSnippet()" style="padding:0.3rem 0.65rem; font-size:0.75rem;">📋 Copy</button>
+                  </div>
+                  <span style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:0.25rem;">Paste this script tag into your storefront HTML &lt;head&gt; or &lt;body&gt; to connect YouPI checkout.</span>
+                </div>
+              </div>
+
               <!-- SECTION 1: CORE BRAND IDENTITY -->
               <div class="settings-group-box">
                 <div class="group-box-title">
@@ -1569,7 +1611,7 @@
                   <div>
                     <label style="display:block; font-size:0.82rem; font-weight:700; margin-bottom:0.35rem;">Gateway
                       Title / App Name</label>
-                    <input id="settingAppName" type="text" value="YOUPI PG" placeholder="e.g. YOUPI Pay"
+                    <input id="settingAppName" type="text" value="{{APP_NAME}}" placeholder="e.g. {{APP_NAME}}"
                       style="width:100%;" oninput="updateLiveWhiteLabelPreview()" />
                   </div>
                 </div>
@@ -1725,7 +1767,7 @@
             <div style="position:sticky; top:130px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
                 <div
-                  style="font-size:0.82rem; font-weight:800; text-transform:uppercase; color:#94a3b8; display:flex; align-items:center; gap:0.4rem;">
+                  style="font-size:0.82rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); display:flex; align-items:center; gap:0.4rem;">
                   <span
                     style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981;"></span>
                   Live Gateway Mockup Preview
@@ -1778,7 +1820,7 @@
                     <span>🛒</span>
                     <span id="mockupSubbannerText"
                       style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Verified &amp; Protected by
-                      YOUPI PG</span>
+                      {{APP_NAME}}</span>
                   </div>
                 </div>
 
@@ -1822,11 +1864,11 @@
                   <div
                     style="display:flex; align-items:center; justify-content:center; gap:5px; font-size:10px; font-weight:700; color:#0b63e5; margin-bottom:5px;">
                     <span>🛡️</span>
-                    <span id="mockupFooterGuarantee">100% Payment Protection by YOUPI PG</span>
+                    <span id="mockupFooterGuarantee">100% Payment Protection by {{APP_NAME}}</span>
                   </div>
                   <div id="mockupLegalDisclaimer"
                     style="font-size:9px; color:#64748b; text-align:center; margin-bottom:8px;">
-                    Secured by YOUPI PG &amp; 256-Bit Bank Encryption &bull; Privacy Notice
+                    Secured by {{APP_NAME}} &amp; 256-Bit Bank Encryption &bull; Privacy Notice
                   </div>
                   <div
                     style="display:flex; justify-content:space-between; align-items:center; background:#0f172a; border-radius:8px; padding:8px 12px; color:#ffffff;">
@@ -2091,12 +2133,12 @@
       <div id="subViewDevSimulator" hidden>
         <!-- Header Banner -->
         <div class="card"
-          style="border:2px solid var(--primary); background:linear-gradient(135deg, rgba(20,184,166,0.12) 0%, rgba(15,23,42,0.98) 100%); margin-bottom:1.5rem;">
+          style="border:2px solid var(--primary); background:linear-gradient(135deg, rgba(20,184,166,0.12) 0%, var(--bg-card) 100%); margin-bottom:1.5rem;">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
             <div>
               <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.35rem;">
                 <span style="font-size:1.5rem;">🎮</span>
-                <h2 style="margin:0; font-size:1.35rem; color:#ffffff; font-weight:800;">Developer Tools → Payment
+                <h2 style="margin:0; font-size:1.35rem; color:var(--text-heading); font-weight:800;">Developer Tools → Payment
                   Simulator</h2>
                 <span class="badge"
                   style="background:#0f766e; color:#ffffff; font-size:0.75rem; padding:0.25rem 0.65rem;">DEVELOPER
@@ -2111,10 +2153,10 @@
             </div>
             <!-- Test Mode Quick Status / Enable -->
             <div
-              style="background:#1e293b; border:1px solid #334155; border-radius:8px; padding:0.75rem 1rem; display:flex; align-items:center; gap:0.75rem;">
+              style="background:var(--bg-surface); border:1px solid var(--border); border-radius:8px; padding:0.75rem 1rem; display:flex; align-items:center; gap:0.75rem;">
               <div style="font-size:0.8rem;">
-                <div style="color:#94a3b8; font-size:0.72rem; text-transform:uppercase;">Test Mode Status</div>
-                <strong id="simTestModeStatus" style="color:#f59e0b;">Checking...</strong>
+                <div style="color:var(--text-muted); font-size:0.72rem; text-transform:uppercase;">Test Mode Status</div>
+                <strong id="simTestModeStatus" style="color:var(--warning);">Checking...</strong>
               </div>
               <button id="simBtnEnableTestMode" class="btn btn-primary" onclick="simQuickEnableTestMode()"
                 style="font-size:0.78rem; padding:0.4rem 0.8rem; background:#f59e0b; border-color:#d97706; color:#0f172a; font-weight:700;">
@@ -2125,13 +2167,13 @@
         </div>
 
         <!-- Target Customer & Active Payment Session Card -->
-        <div class="card" style="border:1px solid #334155; background:#0f172a; margin-bottom:1.5rem;">
+        <div class="card" style="border:1px solid var(--border); background:var(--bg-box); margin-bottom:1.5rem;">
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1.5rem;">
 
             <!-- Column 1: Customer Selection -->
             <div>
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
-                <strong style="color:#ffffff; font-size:0.95rem; display:flex; align-items:center; gap:0.5rem;">
+                <strong style="color:var(--text-heading); font-size:0.95rem; display:flex; align-items:center; gap:0.5rem;">
                   <span>👤</span> Target Customer
                 </strong>
                 <button class="btn btn-secondary" onclick="simFetchCustomers()"
@@ -2142,30 +2184,30 @@
               <div style="margin-bottom:0.75rem;">
                 <input type="text" id="simCustomerSearchInput" placeholder="Search customer (Name, Mobile, Email)..."
                   oninput="simFilterCustomers(this.value)"
-                  style="width:100%; box-sizing:border-box; background:#1e293b; color:#f8fafc; border:1px solid #475569; padding:0.5rem 0.75rem; border-radius:6px; font-size:0.84rem;" />
+                  style="width:100%; box-sizing:border-box; background:var(--bg-surface); color:var(--text-heading); border:1px solid var(--border-hover); padding:0.5rem 0.75rem; border-radius:6px; font-size:0.84rem;" />
               </div>
               <select id="simCustomerSelect" size="4" onchange="simSelectCustomer(this.value)"
-                style="width:100%; box-sizing:border-box; background:#020617; color:#f8fafc; border:1px solid #334155; border-radius:6px; padding:0.5rem; font-size:0.82rem; min-height:110px;">
+                style="width:100%; box-sizing:border-box; background:var(--bg-input); color:var(--text-heading); border:1px solid var(--border); border-radius:6px; padding:0.5rem; font-size:0.82rem; min-height:110px;">
                 <option value="" disabled selected>Loading existing customers...</option>
               </select>
 
               <!-- Selected Customer Details -->
               <div id="simSelectedCustomerBox"
-                style="margin-top:0.75rem; padding:0.85rem; border-radius:8px; background:#1e293b; border:1px solid #334155; display:none;">
-                <div style="font-size:0.74rem; color:#94a3b8; text-transform:uppercase; margin-bottom:0.25rem;">Selected
+                style="margin-top:0.75rem; padding:0.85rem; border-radius:8px; background:var(--bg-surface); border:1px solid var(--border); display:none;">
+                <div style="font-size:0.74rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:0.25rem;">Selected
                   Customer</div>
                 <div style="display:flex; justify-content:space-between; align-items:baseline;">
-                  <strong id="simCustName" style="color:#ffffff; font-size:1rem;">-</strong>
-                  <span id="simCustPhone" style="color:#38bdf8; font-family:monospace; font-size:0.84rem;">-</span>
+                  <strong id="simCustName" style="color:var(--text-heading); font-size:1rem;">-</strong>
+                  <span id="simCustPhone" style="color:var(--info); font-family:monospace; font-size:0.84rem;">-</span>
                 </div>
-                <div id="simCustEmail" style="color:#94a3b8; font-size:0.8rem; margin-top:0.2rem;">-</div>
+                <div id="simCustEmail" style="color:var(--text-muted); font-size:0.8rem; margin-top:0.2rem;">-</div>
               </div>
             </div>
 
             <!-- Column 2: Active Payment Session Selection -->
             <div>
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
-                <strong style="color:#ffffff; font-size:0.95rem; display:flex; align-items:center; gap:0.5rem;">
+                <strong style="color:var(--text-heading); font-size:0.95rem; display:flex; align-items:center; gap:0.5rem;">
                   <span>💳</span> Active Payment Sessions
                 </strong>
                 <button class="btn btn-secondary" onclick="simReloadSessions()"
@@ -2174,31 +2216,31 @@
                 </button>
               </div>
               <div id="simSessionsList"
-                style="min-height:160px; max-height:220px; overflow-y:auto; background:#020617; border:1px solid #334155; border-radius:6px; padding:0.5rem;">
-                <div style="color:#64748b; font-size:0.82rem; text-align:center; padding:2rem 1rem;">
+                style="min-height:160px; max-height:220px; overflow-y:auto; background:var(--bg-input); border:1px solid var(--border); border-radius:6px; padding:0.5rem;">
+                <div style="color:var(--text-muted); font-size:0.82rem; text-align:center; padding:2rem 1rem;">
                   Please select a customer on the left to inspect their active payment sessions.
                 </div>
               </div>
 
               <!-- Terminal Session Notice (Requirement 6) -->
               <div id="simTerminalNotice"
-                style="display:none; margin-top:0.75rem; padding:0.75rem 1rem; border-radius:8px; background:rgba(239,68,68,0.15); border:1px solid #ef4444; color:#fca5a5; font-size:0.84rem; font-weight:700;">
+                style="display:none; margin-top:0.75rem; padding:0.75rem 1rem; border-radius:8px; background:rgba(239,68,68,0.15); border:1px solid #ef4444; color:var(--danger); font-size:0.84rem; font-weight:700;">
                 ⚠️ SESSION NO LONGER ACTIVE — Observation injection disabled for terminal sessions.
               </div>
 
               <!-- Selected Session Details Bar -->
               <div id="simSelectedSessionBar"
-                style="display:none; margin-top:0.75rem; padding:0.75rem 1rem; border-radius:8px; background:#1e293b; border:1px solid var(--primary); display:flex; justify-content:space-between; align-items:center;">
+                style="display:none; margin-top:0.75rem; padding:0.75rem 1rem; border-radius:8px; background:var(--bg-surface); border:1px solid var(--primary); display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                  <span style="font-size:0.72rem; color:#94a3b8; text-transform:uppercase;">Target Session</span>
+                  <span style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase;">Target Session</span>
                   <div style="display:flex; align-items:center; gap:0.5rem; margin-top:0.15rem;">
                     <strong id="simSelectedSessionId"
-                      style="color:#38bdf8; font-family:monospace; font-size:0.84rem;">-</strong>
-                    <span id="simSelectedSessionOrder" style="color:#e2e8f0; font-size:0.82rem;">-</span>
+                      style="color:var(--info); font-family:monospace; font-size:0.84rem;">-</strong>
+                    <span id="simSelectedSessionOrder" style="color:var(--text-heading); font-size:0.82rem;">-</span>
                   </div>
                 </div>
                 <div style="text-align:right;">
-                  <div id="simSelectedSessionAmount" style="color:#22c55e; font-weight:800; font-size:1.05rem;">-</div>
+                  <div id="simSelectedSessionAmount" style="color:var(--success); font-weight:800; font-size:1.05rem;">-</div>
                   <span id="simSelectedSessionBadge" class="badge"
                     style="font-size:0.7rem; padding:0.2rem 0.5rem; background:#22c55e; color:#0f172a;">ACTIVE</span>
                 </div>
@@ -2213,50 +2255,50 @@
           style="display:grid; grid-template-columns:repeat(auto-fit, minmax(360px, 1fr)); gap:1.5rem; margin-bottom:1.5rem;">
 
           <!-- SMS STREAM PANEL -->
-          <div class="card" style="border:1px solid var(--primary); background:#0b0f19;">
+          <div class="card" style="border:1px solid var(--primary); background:var(--bg-box);">
             <div
-              style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid #1e293b; padding-bottom:0.75rem;">
-              <strong style="color:#60a5fa; font-size:1.05rem; display:flex; align-items:center; gap:0.5rem;">
+              style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.75rem;">
+              <strong style="color:var(--info); font-size:1.05rem; display:flex; align-items:center; gap:0.5rem;">
                 <span>📱</span> SMS STREAM
               </strong>
-              <span style="font-size:0.74rem; color:#94a3b8;">100% Customizable · Any String</span>
+              <span style="font-size:0.74rem; color:var(--text-muted);">100% Customizable · Any String</span>
             </div>
 
             <div style="margin-bottom:1rem;">
-              <label style="display:block; font-size:0.8rem; color:#94a3b8; margin-bottom:0.35rem; font-weight:600;">
+              <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:0.35rem; font-weight:600;">
                 Sender / Short Code
               </label>
               <input type="text" id="simSmsSender" value="HDFCBK"
                 placeholder="e.g. HDFCBK, AXISBK, SBIN, arbitrary string..."
-                style="width:100%; box-sizing:border-box; background:#1e293b; color:#f8fafc; border:1px solid #475569; padding:0.5rem 0.75rem; border-radius:6px; font-size:0.84rem; font-family:monospace;" />
+                style="width:100%; box-sizing:border-box; background:var(--bg-surface); color:var(--text-heading); border:1px solid var(--border-hover); padding:0.5rem 0.75rem; border-radius:6px; font-size:0.84rem; font-family:monospace;" />
             </div>
 
             <div style="margin-bottom:1rem;">
-              <label style="display:block; font-size:0.8rem; color:#94a3b8; margin-bottom:0.35rem; font-weight:600;">
+              <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:0.35rem; font-weight:600;">
                 SMS Content (Free-Form Raw Text)
               </label>
               <textarea id="simSmsContent" rows="4"
                 placeholder="e.g. A/C XX1234 credited with Rs 499.00 CR. Ref 123456789012"
-                style="width:100%; box-sizing:border-box; background:#020617; color:#f8fafc; border:1px solid #334155; border-radius:6px; padding:0.75rem; font-size:0.84rem; font-family:monospace; resize:vertical;"></textarea>
-              <div style="font-size:0.72rem; color:#64748b; margin-top:0.25rem;">Exact text preserved verbatim as
+                style="width:100%; box-sizing:border-box; background:var(--bg-input); color:var(--text-heading); border:1px solid var(--border); border-radius:6px; padding:0.75rem; font-size:0.84rem; font-family:monospace; resize:vertical;"></textarea>
+              <div style="font-size:0.72rem; color:var(--text-muted); margin-top:0.25rem;">Exact text preserved verbatim as
                 <code>raw</code>.
               </div>
             </div>
 
             <div style="margin-bottom:1.25rem;">
-              <label style="display:block; font-size:0.8rem; color:#94a3b8; margin-bottom:0.35rem; font-weight:600;">
+              <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:0.35rem; font-weight:600;">
                 Received Time
               </label>
               <div style="display:flex; gap:0.5rem; margin-bottom:0.4rem;">
                 <select id="simSmsTimeType" onchange="simToggleTimeInput('SMS')"
-                  style="background:#1e293b; color:#f8fafc; border:1px solid #475569; padding:0.4rem 0.65rem; border-radius:6px; font-size:0.82rem;">
+                  style="background:var(--bg-surface); color:var(--text-heading); border:1px solid var(--border-hover); padding:0.4rem 0.65rem; border-radius:6px; font-size:0.82rem;">
                   <option value="CURRENT">Current Server Time</option>
                   <option value="CUSTOM">Custom Timestamp</option>
                 </select>
               </div>
               <input type="text" id="simSmsCustomTime"
                 placeholder="YYYY-MM-DDTHH:mm:ss.sssZ (e.g. 2026-10-04T11:45:21Z)"
-                style="display:none; width:100%; box-sizing:border-box; background:#1e293b; color:#f8fafc; border:1px solid #475569; padding:0.45rem 0.75rem; border-radius:6px; font-size:0.82rem; font-family:monospace;" />
+                style="display:none; width:100%; box-sizing:border-box; background:var(--bg-surface); color:var(--text-heading); border:1px solid var(--border-hover); padding:0.45rem 0.75rem; border-radius:6px; font-size:0.82rem; font-family:monospace;" />
             </div>
 
             <button id="simBtnPushSms" class="btn btn-primary" onclick="simInjectObservation('SMS')"
@@ -2266,50 +2308,50 @@
           </div>
 
           <!-- GMAIL STREAM PANEL -->
-          <div class="card" style="border:1px solid #ec4899; background:#0b0f19;">
+          <div class="card" style="border:1px solid #ec4899; background:var(--bg-box);">
             <div
-              style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid #1e293b; padding-bottom:0.75rem;">
+              style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.75rem;">
               <strong style="color:#f472b6; font-size:1.05rem; display:flex; align-items:center; gap:0.5rem;">
                 <span>✉️</span> GMAIL STREAM
               </strong>
-              <span style="font-size:0.74rem; color:#94a3b8;">100% Customizable · Any String</span>
+              <span style="font-size:0.74rem; color:var(--text-muted);">100% Customizable · Any String</span>
             </div>
 
             <div style="margin-bottom:1rem;">
-              <label style="display:block; font-size:0.8rem; color:#94a3b8; margin-bottom:0.35rem; font-weight:600;">
+              <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:0.35rem; font-weight:600;">
                 Sender Email Address
               </label>
               <input type="text" id="simGmailSender" value="notification@yourbank.bank.in"
                 placeholder="e.g. notification@yourbank.bank.in, test@gmail.com, arbitrary email..."
-                style="width:100%; box-sizing:border-box; background:#1e293b; color:#f8fafc; border:1px solid #475569; padding:0.5rem 0.75rem; border-radius:6px; font-size:0.84rem; font-family:monospace;" />
+                style="width:100%; box-sizing:border-box; background:var(--bg-surface); color:var(--text-heading); border:1px solid var(--border-hover); padding:0.5rem 0.75rem; border-radius:6px; font-size:0.84rem; font-family:monospace;" />
             </div>
 
             <div style="margin-bottom:1rem;">
-              <label style="display:block; font-size:0.8rem; color:#94a3b8; margin-bottom:0.35rem; font-weight:600;">
+              <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:0.35rem; font-weight:600;">
                 Gmail Content (Free-Form Raw Text)
               </label>
               <textarea id="simGmailContent" rows="4"
                 placeholder="e.g. Your account has been credited with ₹499.00 via UPI. Reference 123456789012."
-                style="width:100%; box-sizing:border-box; background:#020617; color:#f8fafc; border:1px solid #334155; border-radius:6px; padding:0.75rem; font-size:0.84rem; font-family:monospace; resize:vertical;"></textarea>
-              <div style="font-size:0.72rem; color:#64748b; margin-top:0.25rem;">Exact text preserved verbatim as
+                style="width:100%; box-sizing:border-box; background:var(--bg-input); color:var(--text-heading); border:1px solid var(--border); border-radius:6px; padding:0.75rem; font-size:0.84rem; font-family:monospace; resize:vertical;"></textarea>
+              <div style="font-size:0.72rem; color:var(--text-muted); margin-top:0.25rem;">Exact text preserved verbatim as
                 <code>raw</code>.
               </div>
             </div>
 
             <div style="margin-bottom:1.25rem;">
-              <label style="display:block; font-size:0.8rem; color:#94a3b8; margin-bottom:0.35rem; font-weight:600;">
+              <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:0.35rem; font-weight:600;">
                 Received Time
               </label>
               <div style="display:flex; gap:0.5rem; margin-bottom:0.4rem;">
                 <select id="simGmailTimeType" onchange="simToggleTimeInput('GMAIL')"
-                  style="background:#1e293b; color:#f8fafc; border:1px solid #475569; padding:0.4rem 0.65rem; border-radius:6px; font-size:0.82rem;">
+                  style="background:var(--bg-surface); color:var(--text-heading); border:1px solid var(--border-hover); padding:0.4rem 0.65rem; border-radius:6px; font-size:0.82rem;">
                   <option value="CURRENT">Current Server Time</option>
                   <option value="CUSTOM">Custom Timestamp</option>
                 </select>
               </div>
               <input type="text" id="simGmailCustomTime"
                 placeholder="YYYY-MM-DDTHH:mm:ss.sssZ (e.g. 2026-10-04T11:45:21Z)"
-                style="display:none; width:100%; box-sizing:border-box; background:#1e293b; color:#f8fafc; border:1px solid #475569; padding:0.45rem 0.75rem; border-radius:6px; font-size:0.82rem; font-family:monospace;" />
+                style="display:none; width:100%; box-sizing:border-box; background:var(--bg-surface); color:var(--text-heading); border:1px solid var(--border-hover); padding:0.45rem 0.75rem; border-radius:6px; font-size:0.82rem; font-family:monospace;" />
             </div>
 
             <button id="simBtnPushGmail" class="btn btn-primary" onclick="simInjectObservation('GMAIL')"
@@ -2322,48 +2364,48 @@
 
         <!-- PROCESSING RESULT INSPECTOR (Section 21 & 22) -->
         <div id="simResultInspectorCard" class="card"
-          style="display:none; border:1px solid #334155; background:#020617; margin-bottom:1.5rem;">
+          style="display:none; border:1px solid var(--border); background:var(--bg-input); margin-bottom:1.5rem;">
           <div
-            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem; border-bottom:1px solid #1e293b; padding-bottom:0.75rem;">
+            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem; border-bottom:1px solid var(--border); padding-bottom:0.75rem;">
             <div style="display:flex; align-items:center; gap:0.75rem;">
               <span style="font-size:1.3rem;">🔬</span>
-              <h3 style="margin:0; font-size:1.15rem; color:#ffffff; font-weight:800;">Processing Result Inspector</h3>
+              <h3 style="margin:0; font-size:1.15rem; color:var(--text-heading); font-weight:800;">Processing Result Inspector</h3>
               <span id="simResultStatusBadge" class="badge"
                 style="font-size:0.82rem; padding:0.3rem 0.75rem;">UNKNOWN</span>
             </div>
-            <div id="simResultMessageId" style="font-size:0.78rem; color:#94a3b8; font-family:monospace;"></div>
+            <div id="simResultMessageId" style="font-size:0.78rem; color:var(--text-muted); font-family:monospace;"></div>
           </div>
 
           <!-- Target & Extracted Fields Grid -->
           <div
             style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:0.75rem; margin-bottom:1.25rem;">
-            <div style="background:#0f172a; padding:0.65rem 0.85rem; border-radius:6px; border:1px solid #1e293b;">
-              <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase;">Target Session</div>
+            <div style="background:var(--bg-box); padding:0.65rem 0.85rem; border-radius:6px; border:1px solid var(--border);">
+              <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">Target Session</div>
               <div id="simResTargetSession"
-                style="font-weight:700; color:#f8fafc; font-size:0.85rem; font-family:monospace;">None</div>
+                style="font-weight:700; color:var(--text-heading); font-size:0.85rem; font-family:monospace;">None</div>
             </div>
-            <div style="background:#0f172a; padding:0.65rem 0.85rem; border-radius:6px; border:1px solid #1e293b;">
-              <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase;">Source</div>
-              <div id="simResSource" style="font-weight:700; color:#f8fafc; font-size:0.85rem;">-</div>
+            <div style="background:var(--bg-box); padding:0.65rem 0.85rem; border-radius:6px; border:1px solid var(--border);">
+              <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">Source</div>
+              <div id="simResSource" style="font-weight:700; color:var(--text-heading); font-size:0.85rem;">-</div>
             </div>
-            <div style="background:#0f172a; padding:0.65rem 0.85rem; border-radius:6px; border:1px solid #1e293b;">
-              <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase;">Amount</div>
-              <div id="simResAmount" style="font-weight:700; color:#38bdf8; font-size:0.95rem;">-</div>
+            <div style="background:var(--bg-box); padding:0.65rem 0.85rem; border-radius:6px; border:1px solid var(--border);">
+              <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">Amount</div>
+              <div id="simResAmount" style="font-weight:700; color:var(--info); font-size:0.95rem;">-</div>
             </div>
-            <div style="background:#0f172a; padding:0.65rem 0.85rem; border-radius:6px; border:1px solid #1e293b;">
-              <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase;">Reference / UTR</div>
-              <div id="simResRef" style="font-weight:700; color:#f8fafc; font-size:0.82rem; font-family:monospace;">-
+            <div style="background:var(--bg-box); padding:0.65rem 0.85rem; border-radius:6px; border:1px solid var(--border);">
+              <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">Reference / UTR</div>
+              <div id="simResRef" style="font-weight:700; color:var(--text-heading); font-size:0.82rem; font-family:monospace;">-
               </div>
             </div>
-            <div style="background:#0f172a; padding:0.65rem 0.85rem; border-radius:6px; border:1px solid #1e293b;">
-              <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase;">Failing Reason</div>
-              <div id="simResReason" style="font-weight:700; color:#f87171; font-size:0.82rem;">None</div>
+            <div style="background:var(--bg-box); padding:0.65rem 0.85rem; border-radius:6px; border:1px solid var(--border);">
+              <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">Failing Reason</div>
+              <div id="simResReason" style="font-weight:700; color:var(--danger); font-size:0.82rem;">None</div>
             </div>
           </div>
 
           <!-- 6-Stage Execution Visualizer -->
           <div
-            style="font-size:0.8rem; font-weight:700; color:#94a3b8; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.04em;">
+            style="font-size:0.8rem; font-weight:700; color:var(--text-muted); margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.04em;">
             Pipeline Stage Inspection (Stages 1 – 6)
           </div>
           <div id="simStagesContainer" style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1rem;">
@@ -2371,18 +2413,18 @@
           </div>
 
           <!-- Raw Text Verbatim -->
-          <div style="background:#0f172a; padding:0.75rem 1rem; border-radius:6px; border:1px solid #1e293b;">
-            <div style="font-size:0.72rem; color:#64748b; text-transform:uppercase; margin-bottom:0.25rem;">Exact Raw
+          <div style="background:var(--bg-box); padding:0.75rem 1rem; border-radius:6px; border:1px solid var(--border);">
+            <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:0.25rem;">Exact Raw
               Payload (Preserved)</div>
             <pre id="simResRawText"
-              style="margin:0; font-size:0.8rem; color:#cbd5e1; font-family:monospace; white-space:pre-wrap; word-break:break-all;"></pre>
+              style="margin:0; font-size:0.8rem; color:var(--text); font-family:monospace; white-space:pre-wrap; word-break:break-all;"></pre>
           </div>
         </div>
 
         <!-- SIMULATION HISTORY (Section 26 & 30) -->
-        <div class="card" style="border:1px solid #1e293b; background:#0b0f19;">
+        <div class="card" style="border:1px solid var(--border); background:var(--bg-box);">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.85rem;">
-            <strong style="color:#ffffff; font-size:0.95rem; display:flex; align-items:center; gap:0.5rem;">
+            <strong style="color:var(--text-heading); font-size:0.95rem; display:flex; align-items:center; gap:0.5rem;">
               <span>📜</span> Simulation History
             </strong>
             <button class="btn btn-secondary" onclick="simFetchHistory()"
@@ -2394,7 +2436,7 @@
             <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
               <thead>
                 <tr
-                  style="border-bottom:1px solid #334155; color:#94a3b8; font-size:0.74rem; text-transform:uppercase;">
+                  style="border-bottom:1px solid var(--border); color:var(--text-muted); font-size:0.74rem; text-transform:uppercase;">
                   <th style="padding:0.6rem 0.75rem;">Timestamp</th>
                   <th style="padding:0.6rem 0.75rem;">Source</th>
                   <th style="padding:0.6rem 0.75rem;">Sender</th>
@@ -2406,7 +2448,7 @@
               </thead>
               <tbody id="simHistoryTableBody">
                 <tr>
-                  <td colspan="7" style="padding:1.5rem; text-align:center; color:#64748b;">Loading history...</td>
+                  <td colspan="7" style="padding:1.5rem; text-align:center; color:var(--text-muted);">Loading history...</td>
                 </tr>
               </tbody>
             </table>
@@ -2422,12 +2464,12 @@
         <div id="modalEnableTestMode"
           style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:999999; align-items:center; justify-content:center;">
           <div
-            style="max-width:480px; width:92%; background:#0f172a; border:2px solid #f59e0b; border-radius:12px; padding:1.75rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.9);">
+            style="max-width:480px; width:92%; background:var(--bg-box); border:2px solid #f59e0b; border-radius:12px; padding:1.75rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.9);">
             <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
               <span style="font-size:1.8rem;">⚠️</span>
-              <h3 style="margin:0; font-size:1.25rem; color:#fbbf24; font-weight:800;">Enable Test Mode?</h3>
+              <h3 style="margin:0; font-size:1.25rem; color:var(--warning); font-weight:800;">Enable Test Mode?</h3>
             </div>
-            <p style="color:#e2e8f0; font-size:0.92rem; line-height:1.6; margin-bottom:1.5rem;">
+            <p style="color:var(--text-heading); font-size:0.92rem; line-height:1.6; margin-bottom:1.5rem;">
               Test Mode disables automatic banning for 10 minutes and is intended only for development and testing.
             </p>
             <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
@@ -2445,15 +2487,15 @@
 
         <!-- DEVELOPER TEST MODE CARD (SECTIONS 11A - 11L) -->
         <div class="card" id="cardDeveloperTestMode"
-          style="border:2px solid #f59e0b; background:linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(15,23,42,0.96) 100%); margin-bottom:1.5rem;">
+          style="border:2px solid #f59e0b; background:linear-gradient(135deg, rgba(245,158,11,0.08) 0%, var(--bg-card) 100%); margin-bottom:1.5rem;">
           <!-- Card Header & Autoritative Server Toggle -->
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
             <div style="flex:1; min-width:280px;">
               <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.35rem;">
                 <span style="font-size:1.35rem;">🧪</span>
-                <strong style="font-size:1.15rem; color:#ffffff;">Developer Settings → Test Mode</strong>
+                <strong style="font-size:1.15rem; color:var(--text-heading);">Developer Settings → Test Mode</strong>
                 <span class="badge" id="testModeBadge"
-                  style="font-size:0.75rem; padding:0.25rem 0.65rem; background:#334155; color:#94a3b8;">[ OFF ] Test
+                  style="font-size:0.75rem; padding:0.25rem 0.65rem; background:var(--bg-elevated); color:var(--text-muted);">[ OFF ] Test
                   Mode</span>
               </div>
               <p
@@ -2463,10 +2505,10 @@
                 Automatically expires after 10 minutes (strictly enforced server-side).
               </p>
               <div
-                style="display:flex; align-items:center; gap:0.75rem; margin-top:0.6rem; font-size:0.78rem; color:#94a3b8; flex-wrap:wrap;">
-                <span id="testModeBanStatusText">🛡️ Automatic Ban System: <strong style="color:#22c55e;">ENABLED
+                style="display:flex; align-items:center; gap:0.75rem; margin-top:0.6rem; font-size:0.78rem; color:var(--text-muted); flex-wrap:wrap;">
+                <span id="testModeBanStatusText">🛡️ Automatic Ban System: <strong style="color:var(--success);">ENABLED
                     (Normal)</strong></span>
-                <span id="testModeCountdownWrap" style="display:none; color:#fbbf24; font-weight:700;">⏱ Test Mode
+                <span id="testModeCountdownWrap" style="display:none; color:var(--warning); font-weight:700;">⏱ Test Mode
                   Enabled · Remaining time: <span id="testModeTimerVal">10:00</span></span>
               </div>
             </div>
@@ -2484,7 +2526,7 @@
           <div id="testModeActiveBanner"
             style="display:none; margin-top:1.25rem; padding:1rem; border-radius:8px; background:rgba(245,158,11,0.14); border:1px solid rgba(245,158,11,0.4); color:#fef3c7;">
             <div
-              style="display:flex; align-items:center; gap:0.6rem; font-weight:800; font-size:0.95rem; color:#fbbf24; margin-bottom:0.25rem;">
+              style="display:flex; align-items:center; gap:0.6rem; font-weight:800; font-size:0.95rem; color:var(--warning); margin-bottom:0.25rem;">
               <span>⚠️</span> TEST MODE ACTIVE
             </div>
             <div style="font-size:0.84rem; color:#fed7aa; line-height:1.4;">
@@ -2498,19 +2540,19 @@
             <div
               style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; margin-bottom:1rem;">
               <div>
-                <h4 style="margin:0; font-size:1.05rem; color:#ffffff; display:flex; align-items:center; gap:0.5rem;">
+                <h4 style="margin:0; font-size:1.05rem; color:var(--text-heading); display:flex; align-items:center; gap:0.5rem;">
                   <span>🎯</span> Test Payment Observation
                 </h4>
-                <span style="font-size:0.78rem; color:#94a3b8;">Inject synthetic observations directly into the
+                <span style="font-size:0.78rem; color:var(--text-muted);">Inject synthetic observations directly into the
                   canonical 6-stage production verification flow.</span>
               </div>
               <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
                 <button class="btn btn-secondary" onclick="generateFakeSmsTemplate()"
-                  style="font-size:0.8rem; padding:0.4rem 0.85rem; border-color:#d97706; color:#fde68a;">
+                  style="font-size:0.8rem; padding:0.4rem 0.85rem; border-color:#d97706; color:var(--warning);">
                   📱 Create Fake SMS
                 </button>
                 <button class="btn btn-secondary" onclick="generateFakeGmailTemplate()"
-                  style="font-size:0.8rem; padding:0.4rem 0.85rem; border-color:#d97706; color:#fde68a;">
+                  style="font-size:0.8rem; padding:0.4rem 0.85rem; border-color:#d97706; color:var(--warning);">
                   ✉️ Create Fake Gmail
                 </button>
               </div>
@@ -2518,36 +2560,36 @@
 
             <!-- Section 11G: Timestamp Control -->
             <div
-              style="background:#0b0f19; padding:0.85rem; border-radius:8px; border:1px solid #1e293b; margin-bottom:1.25rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
-              <span style="font-size:0.82rem; color:#94a3b8; font-weight:600;">⏱ Test Timestamp Control:</span>
+              style="background:var(--bg-box); padding:0.85rem; border-radius:8px; border:1px solid var(--border); margin-bottom:1.25rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+              <span style="font-size:0.82rem; color:var(--text-muted); font-weight:600;">⏱ Test Timestamp Control:</span>
               <select id="selectTestTimestampControl" onchange="handleTestTimestampChange(this.value)"
-                style="background:#1e293b; color:#f8fafc; border:1px solid #475569; padding:0.35rem 0.75rem; border-radius:6px; font-size:0.82rem;">
+                style="background:var(--bg-surface); color:var(--text-heading); border:1px solid var(--border-hover); padding:0.35rem 0.75rem; border-radius:6px; font-size:0.82rem;">
                 <option value="CURRENT">Current Server Timestamp (Normal)</option>
                 <option value="BEFORE_SESSION">Message received before session creation (-5 mins)</option>
                 <option value="AFTER_EXPIRY">Message received after session expiry (+30 mins)</option>
                 <option value="CUSTOM">Custom ISO Timestamp</option>
               </select>
               <input type="text" id="inputCustomTimestamp" placeholder="YYYY-MM-DDTHH:mm:ss.sssZ"
-                style="display:none; background:#1e293b; color:#f8fafc; border:1px solid #475569; padding:0.35rem 0.75rem; border-radius:6px; font-size:0.82rem; width:220px;" />
+                style="display:none; background:var(--bg-surface); color:var(--text-heading); border:1px solid var(--border-hover); padding:0.35rem 0.75rem; border-radius:6px; font-size:0.82rem; width:220px;" />
             </div>
 
             <!-- Sections 11D & 11E: Custom SMS & Custom Gmail Testing Grid -->
             <div
               style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1.25rem; margin-bottom:1.5rem;">
               <!-- Custom SMS Input Area (Section 11D) -->
-              <div style="background:#0b0f19; border:1px solid #334155; border-radius:10px; padding:1.1rem;">
+              <div style="background:var(--bg-box); border:1px solid var(--border); border-radius:10px; padding:1.1rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
-                  <strong style="color:#60a5fa; font-size:0.92rem; display:flex; align-items:center; gap:0.4rem;">
+                  <strong style="color:var(--info); font-size:0.92rem; display:flex; align-items:center; gap:0.4rem;">
                     📱 SMS Test Message
                   </strong>
                   <input type="text" id="inputTestSmsSender" placeholder="Sender (e.g. VM-HDFCBK)" value="VM-HDFCBK"
-                    style="background:#1e293b; color:#cbd5e1; border:1px solid #334155; font-size:0.75rem; padding:0.25rem 0.5rem; border-radius:4px; width:130px;" />
+                    style="background:var(--bg-surface); color:var(--text); border:1px solid var(--border); font-size:0.75rem; padding:0.25rem 0.5rem; border-radius:4px; width:130px;" />
                 </div>
                 <textarea id="inputTestSmsMessage" rows="4"
-                  style="width:100%; box-sizing:border-box; background:#020617; color:#f8fafc; border:1px solid #334155; border-radius:6px; padding:0.75rem; font-family:monospace; font-size:0.82rem; resize:vertical;"
+                  style="width:100%; box-sizing:border-box; background:var(--bg-input); color:var(--text-heading); border:1px solid var(--border); border-radius:6px; padding:0.75rem; font-family:monospace; font-size:0.82rem; resize:vertical;"
                   placeholder="Enter custom SMS content here...&#10;e.g. A/C XX1234 credited by Rs 499.00 CR. Ref 123456789012."></textarea>
                 <div style="margin-top:0.75rem; display:flex; justify-content:space-between; align-items:center;">
-                  <span style="font-size:0.72rem; color:#64748b;">Preserved verbatim as <code>raw</code></span>
+                  <span style="font-size:0.72rem; color:var(--text-muted);">Preserved verbatim as <code>raw</code></span>
                   <button class="btn btn-primary" id="btnInjectSms" onclick="injectTestMessage('SMS')"
                     style="background:#0f766e; border-color:#0b5f58; font-size:0.82rem; padding:0.45rem 1rem;">
                     🚀 Inject Test SMS
@@ -2556,20 +2598,20 @@
               </div>
 
               <!-- Custom Gmail Input Area (Section 11E) -->
-              <div style="background:#0b0f19; border:1px solid #334155; border-radius:10px; padding:1.1rem;">
+              <div style="background:var(--bg-box); border:1px solid var(--border); border-radius:10px; padding:1.1rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
                   <strong style="color:#f472b6; font-size:0.92rem; display:flex; align-items:center; gap:0.4rem;">
                     ✉️ Gmail Test Message
                   </strong>
                   <input type="text" id="inputTestGmailSender" placeholder="Sender (e.g. alerts@hdfc.bank.in)"
                     value="alerts@hdfc.bank.in"
-                    style="background:#1e293b; color:#cbd5e1; border:1px solid #334155; font-size:0.75rem; padding:0.25rem 0.5rem; border-radius:4px; width:170px;" />
+                    style="background:var(--bg-surface); color:var(--text); border:1px solid var(--border); font-size:0.75rem; padding:0.25rem 0.5rem; border-radius:4px; width:170px;" />
                 </div>
                 <textarea id="inputTestGmailMessage" rows="4"
-                  style="width:100%; box-sizing:border-box; background:#020617; color:#f8fafc; border:1px solid #334155; border-radius:6px; padding:0.75rem; font-family:monospace; font-size:0.82rem; resize:vertical;"
+                  style="width:100%; box-sizing:border-box; background:var(--bg-input); color:var(--text-heading); border:1px solid var(--border); border-radius:6px; padding:0.75rem; font-family:monospace; font-size:0.82rem; resize:vertical;"
                   placeholder="Enter custom email content here...&#10;e.g. Dear Customer, your account has been credited with INR 499.00 via UPI. UPI Ref No: 123456789012."></textarea>
                 <div style="margin-top:0.75rem; display:flex; justify-content:space-between; align-items:center;">
-                  <span style="font-size:0.72rem; color:#64748b;">Preserved verbatim as <code>raw</code></span>
+                  <span style="font-size:0.72rem; color:var(--text-muted);">Preserved verbatim as <code>raw</code></span>
                   <button class="btn btn-primary" id="btnInjectGmail" onclick="injectTestMessage('GMAIL')"
                     style="background:#db2777; border-color:#be185d; font-size:0.82rem; padding:0.45rem 1rem;">
                     🚀 Inject Test Gmail
@@ -2580,42 +2622,42 @@
 
             <!-- Section 11H: Test Results Display Inspector -->
             <div id="testResultContainer"
-              style="display:none; background:#020617; border:1px solid #334155; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem;">
+              style="display:none; background:var(--bg-input); border:1px solid var(--border); border-radius:10px; padding:1.25rem; margin-bottom:1.5rem;">
               <div
                 style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
                 <div style="display:flex; align-items:center; gap:0.75rem;">
-                  <h4 style="margin:0; font-size:1rem; color:#ffffff;">🔬 Complete Processing Result</h4>
+                  <h4 style="margin:0; font-size:1rem; color:var(--text-heading);">🔬 Complete Processing Result</h4>
                   <span id="testResultStatusBadge" class="badge"
                     style="font-size:0.8rem; padding:0.3rem 0.75rem;">UNKNOWN</span>
                 </div>
-                <div id="testResultMeta" style="font-size:0.8rem; color:#94a3b8; font-family:monospace;"></div>
+                <div id="testResultMeta" style="font-size:0.8rem; color:var(--text-muted); font-family:monospace;"></div>
               </div>
 
               <!-- Quick Metrics Summary -->
               <div
                 style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:0.75rem; margin-bottom:1.25rem;">
-                <div style="background:#0f172a; padding:0.6rem 0.8rem; border-radius:6px; border:1px solid #1e293b;">
-                  <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase;">Source</div>
-                  <div id="testResultSource" style="font-weight:700; color:#f8fafc; font-size:0.9rem;">-</div>
+                <div style="background:var(--bg-box); padding:0.6rem 0.8rem; border-radius:6px; border:1px solid var(--border);">
+                  <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">Source</div>
+                  <div id="testResultSource" style="font-weight:700; color:var(--text-heading); font-size:0.9rem;">-</div>
                 </div>
-                <div style="background:#0f172a; padding:0.6rem 0.8rem; border-radius:6px; border:1px solid #1e293b;">
-                  <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase;">Amount</div>
-                  <div id="testResultAmount" style="font-weight:700; color:#38bdf8; font-size:0.9rem;">-</div>
+                <div style="background:var(--bg-box); padding:0.6rem 0.8rem; border-radius:6px; border:1px solid var(--border);">
+                  <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">Amount</div>
+                  <div id="testResultAmount" style="font-weight:700; color:var(--info); font-size:0.9rem;">-</div>
                 </div>
-                <div style="background:#0f172a; padding:0.6rem 0.8rem; border-radius:6px; border:1px solid #1e293b;">
-                  <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase;">Reference / UTR</div>
+                <div style="background:var(--bg-box); padding:0.6rem 0.8rem; border-radius:6px; border:1px solid var(--border);">
+                  <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">Reference / UTR</div>
                   <div id="testResultRef"
-                    style="font-weight:700; color:#f8fafc; font-size:0.85rem; font-family:monospace;">-</div>
+                    style="font-weight:700; color:var(--text-heading); font-size:0.85rem; font-family:monospace;">-</div>
                 </div>
-                <div style="background:#0f172a; padding:0.6rem 0.8rem; border-radius:6px; border:1px solid #1e293b;">
-                  <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase;">Failing Reason</div>
-                  <div id="testResultReason" style="font-weight:700; color:#f87171; font-size:0.82rem;">None</div>
+                <div style="background:var(--bg-box); padding:0.6rem 0.8rem; border-radius:6px; border:1px solid var(--border);">
+                  <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase;">Failing Reason</div>
+                  <div id="testResultReason" style="font-weight:700; color:var(--danger); font-size:0.82rem;">None</div>
                 </div>
               </div>
 
               <!-- 6-Stage Execution Visualizer -->
               <div
-                style="font-size:0.8rem; font-weight:700; color:#94a3b8; margin-bottom:0.6rem; text-transform:uppercase;">
+                style="font-size:0.8rem; font-weight:700; color:var(--text-muted); margin-bottom:0.6rem; text-transform:uppercase;">
                 Verification Pipeline Stage Inspection
               </div>
               <div id="testResultStagesList" style="display:flex; flex-direction:column; gap:0.5rem;">
@@ -2624,9 +2666,9 @@
             </div>
 
             <!-- Section 11I: Test Mode Audit Log Table -->
-            <div style="background:#0b0f19; border:1px solid #1e293b; border-radius:10px; padding:1.1rem;">
+            <div style="background:var(--bg-box); border:1px solid var(--border); border-radius:10px; padding:1.1rem;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
-                <strong style="color:#ffffff; font-size:0.88rem; display:flex; align-items:center; gap:0.4rem;">
+                <strong style="color:var(--text-heading); font-size:0.88rem; display:flex; align-items:center; gap:0.4rem;">
                   📜 Test Mode Audit Log
                 </strong>
                 <button class="btn btn-secondary" onclick="fetchTestModeAuditLog()"
@@ -2637,7 +2679,7 @@
               <div style="overflow-x:auto;">
                 <table style="width:100%; border-collapse:collapse; font-size:0.78rem; text-align:left;">
                   <thead>
-                    <tr style="border-bottom:1px solid #334155; color:#64748b;">
+                    <tr style="border-bottom:1px solid var(--border); color:var(--text-muted);">
                       <th style="padding:0.4rem;">Time</th>
                       <th style="padding:0.4rem;">Action / Message ID</th>
                       <th style="padding:0.4rem;">Source</th>
@@ -2647,7 +2689,7 @@
                   </thead>
                   <tbody id="testAuditLogTableBody">
                     <tr>
-                      <td colspan="5" style="padding:1rem; text-align:center; color:#64748b;">Loading test audit
+                      <td colspan="5" style="padding:1rem; text-align:center; color:var(--text-muted);">Loading test audit
                         records...</td>
                     </tr>
                   </tbody>
@@ -2660,12 +2702,12 @@
 
         <!-- FALSE NARRATIVE DEV SWITCH (FEATURE 65 / DEV TOOLS) -->
         <div class="card"
-          style="border:2px solid #8b5cf6; background:linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(15,23,42,0.98) 100%); margin-bottom:1.5rem;">
+          style="border:2px solid #8b5cf6; background:linear-gradient(135deg, rgba(139,92,246,0.1) 0%, var(--bg-card) 100%); margin-bottom:1.5rem;">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
             <div style="flex:1; min-width:280px;">
               <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.35rem;">
                 <span style="font-size:1.35rem;">🎭</span>
-                <strong style="font-size:1.15rem; color:#ffffff;">UPI Server Health: False Narrative Switch</strong>
+                <strong style="font-size:1.15rem; color:var(--text-heading);">UPI Server Health: False Narrative Switch</strong>
                 <span class="badge badge-info" id="falseNarrativeBadge"
                   style="font-size:0.75rem; padding:0.25rem 0.65rem;">⚪ OFF · REAL SERVER STATUS</span>
               </div>
@@ -2677,7 +2719,7 @@
                 <strong>Automatically turns off after 10 minutes</strong>.
               </p>
               <div
-                style="display:flex; align-items:center; gap:0.75rem; margin-top:0.6rem; font-size:0.78rem; color:#94a3b8; flex-wrap:wrap;">
+                style="display:flex; align-items:center; gap:0.75rem; margin-top:0.6rem; font-size:0.78rem; color:var(--text-muted); flex-wrap:wrap;">
                 <span>⚡ <strong>QR Code Invariant:</strong> The dynamic UPI QR code always loads and displays whether
                   servers are UP, BUSY, or DOWN.</span>
                 <span id="falseNarrativeCountdownWrap" style="display:none; color:#c084fc; font-weight:700;">⏱
@@ -2702,7 +2744,7 @@
                   🔴 Red
                 </button>
                 <button type="button" id="btnNarrativeOff" onclick="handleFalseNarrativeSelect('OFF')"
-                  style="background:#1e293b; border:1px solid #475569; color:#cbd5e1; font-size:0.8rem; font-weight:700; padding:6px 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:all 0.15s;">
+                  style="background:var(--bg-surface); border:1px solid var(--border-hover); color:var(--text); font-size:0.8rem; font-weight:700; padding:6px 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:all 0.15s;">
                   ⚪ Off (Live)
                 </button>
               </div>
@@ -2712,12 +2754,12 @@
 
         <!-- YOUPI SHOWCASE STORE PORT 5000 MASTER TOGGLE CARD -->
         <div class="card"
-          style="border:2px solid #38bdf8; background:linear-gradient(135deg, rgba(56,189,248,0.06) 0%, rgba(15,23,42,0.95) 100%);">
+          style="border:2px solid #38bdf8; background:linear-gradient(135deg, rgba(56,189,248,0.06) 0%, var(--bg-card) 100%);">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
             <div>
               <div style="display:flex; align-items:center; gap:0.6rem;">
                 <span style="font-size:1.35rem;">🛍️</span>
-                <strong style="font-size:1.15rem; color:#ffffff;">YOUPI Showcase Store (Port 5000)</strong>
+                <strong style="font-size:1.15rem; color:var(--text-heading);">YOUPI Showcase Store (Port 5000)</strong>
                 <span class="badge" id="cardStoreBadge"
                   style="font-size:0.8rem; padding:0.3rem 0.75rem;">CHECKING...</span>
               </div>
@@ -2823,9 +2865,9 @@
           <!-- Mode Segmented Switch -->
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem;">
             <div id="btnEnvLocalhost" onclick="setEnvMode('localhost')"
-              style="background:#0f172a; border:2px solid #38bdf8; border-radius:0.75rem; padding:1.2rem; cursor:pointer; transition:all 0.2s;">
+              style="background:var(--bg-box); border:2px solid #38bdf8; border-radius:0.75rem; padding:1.2rem; cursor:pointer; transition:all 0.2s;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
-                <strong style="font-size:1rem; color:#f1f5f9;">💻 Localhost Mode (Development)</strong>
+                <strong style="font-size:1rem; color:var(--text-heading);">💻 Localhost Mode (Development)</strong>
                 <span class="badge badge-primary" id="badgeLocalhostActive">ACTIVE</span>
               </div>
               <p style="font-size:0.8rem; color:var(--text-muted); margin:0; line-height:1.4;">
@@ -2835,9 +2877,9 @@
             </div>
 
             <div id="btnEnvProduction" onclick="setEnvMode('production')"
-              style="background:#0b1120; border:1px solid var(--border); border-radius:0.75rem; padding:1.2rem; cursor:pointer; transition:all 0.2s;">
+              style="background:var(--bg-box); border:1px solid var(--border); border-radius:0.75rem; padding:1.2rem; cursor:pointer; transition:all 0.2s;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
-                <strong style="font-size:1rem; color:#f1f5f9;">🌍 Production Mode (Cloudflare Tunnel)</strong>
+                <strong style="font-size:1rem; color:var(--text-heading);">🌍 Production Mode (Cloudflare Tunnel)</strong>
                 <span class="badge badge-success" id="badgeProductionActive" style="display:none;">ACTIVE</span>
               </div>
               <p style="font-size:0.8rem; color:var(--text-muted); margin:0; line-height:1.4;">
@@ -2849,8 +2891,8 @@
 
           <!-- Cloudflare Configuration Form -->
           <div
-            style="background:#090d16; border:1px solid var(--border); border-radius:0.75rem; padding:1.25rem; margin-bottom:1.5rem;">
-            <div style="font-size:0.88rem; font-weight:700; color:#38bdf8; margin-bottom:0.75rem;">☁️ Cloudflare Domain
+            style="background:var(--bg-box); border:1px solid var(--border); border-radius:0.75rem; padding:1.25rem; margin-bottom:1.5rem;">
+            <div style="font-size:0.88rem; font-weight:700; color:var(--info); margin-bottom:0.75rem;">☁️ Cloudflare Domain
               &amp; Prefix Setup</div>
             <div
               style="display:grid; grid-template-columns:2fr 1fr 1.3fr; gap:1rem; align-items:flex-end; margin-bottom:1rem;">
@@ -2879,7 +2921,7 @@
           <div style="margin-bottom:1.5rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
               <div>
-                <div style="font-size:0.95rem; font-weight:800; color:#f1f5f9;">🛣️ CLOUDFLARE TUNNEL ROUTES</div>
+                <div style="font-size:0.95rem; font-weight:800; color:var(--text-heading);">🛣️ CLOUDFLARE TUNNEL ROUTES</div>
                 <div style="font-size:0.78rem; color:var(--text-muted);">Exact routes to create in Cloudflare Dashboard.
                   All ports and roles are system-defined.</div>
               </div>
@@ -2892,30 +2934,30 @@
           </div>
 
           <!-- CLOUDFLARE DASHBOARD INSTRUCTIONS -->
-          <div style="background:#090d16; border:1px solid var(--border); border-radius:0.75rem; padding:1.25rem;">
-            <div style="font-size:0.88rem; font-weight:700; color:#38bdf8; margin-bottom:0.75rem;">📖 EXACT CLOUDFLARE
+          <div style="background:var(--bg-box); border:1px solid var(--border); border-radius:0.75rem; padding:1.25rem;">
+            <div style="font-size:0.88rem; font-weight:700; color:var(--info); margin-bottom:0.75rem;">📖 EXACT CLOUDFLARE
               DASHBOARD INSTRUCTIONS</div>
             <div
-              style="display:flex; flex-wrap:wrap; align-items:center; gap:0.4rem; margin-bottom:1rem; font-size:0.8rem; font-family:monospace; background:#020617; padding:0.75rem; border-radius:0.5rem; border:1px solid #1e293b;">
-              <span style="color:#38bdf8; font-weight:700;">Cloudflare Dashboard</span>
-              <span style="color:#64748b;">↓</span>
-              <span style="color:#38bdf8; font-weight:700;">Networking</span>
-              <span style="color:#64748b;">↓</span>
-              <span style="color:#38bdf8; font-weight:700;">Tunnels</span>
-              <span style="color:#64748b;">↓</span>
-              <span style="color:#38bdf8; font-weight:700;">Select YOUPI Tunnel</span>
-              <span style="color:#64748b;">↓</span>
-              <span style="color:#38bdf8; font-weight:700;">Routes</span>
-              <span style="color:#64748b;">↓</span>
-              <span style="color:#38bdf8; font-weight:700;">Add route</span>
-              <span style="color:#64748b;">↓</span>
-              <span style="color:#38bdf8; font-weight:700;">Published application</span>
-              <span style="color:#64748b;">↓</span>
-              <span style="color:#38bdf8; font-weight:700;">Enter Hostname</span>
-              <span style="color:#64748b;">↓</span>
-              <span style="color:#38bdf8; font-weight:700;">Enter Service URL</span>
-              <span style="color:#64748b;">↓</span>
-              <span style="color:#10b981; font-weight:bold;">Save</span>
+              style="display:flex; flex-wrap:wrap; align-items:center; gap:0.4rem; margin-bottom:1rem; font-size:0.8rem; font-family:monospace; background:var(--bg-input); padding:0.75rem; border-radius:0.5rem; border:1px solid var(--border);">
+              <span style="color:var(--info); font-weight:700;">Cloudflare Dashboard</span>
+              <span style="color:var(--text-muted);">↓</span>
+              <span style="color:var(--info); font-weight:700;">Networking</span>
+              <span style="color:var(--text-muted);">↓</span>
+              <span style="color:var(--info); font-weight:700;">Tunnels</span>
+              <span style="color:var(--text-muted);">↓</span>
+              <span style="color:var(--info); font-weight:700;">Select YOUPI Tunnel</span>
+              <span style="color:var(--text-muted);">↓</span>
+              <span style="color:var(--info); font-weight:700;">Routes</span>
+              <span style="color:var(--text-muted);">↓</span>
+              <span style="color:var(--info); font-weight:700;">Add route</span>
+              <span style="color:var(--text-muted);">↓</span>
+              <span style="color:var(--info); font-weight:700;">Published application</span>
+              <span style="color:var(--text-muted);">↓</span>
+              <span style="color:var(--info); font-weight:700;">Enter Hostname</span>
+              <span style="color:var(--text-muted);">↓</span>
+              <span style="color:var(--info); font-weight:700;">Enter Service URL</span>
+              <span style="color:var(--text-muted);">↓</span>
+              <span style="color:var(--success); font-weight:bold;">Save</span>
             </div>
 
             <div style="font-size:0.82rem; color:var(--text-muted); line-height:1.5;">
@@ -2923,7 +2965,7 @@
                 the internet.</p>
               <p style="margin:0 0 0.5rem 0;">• <strong>Service URL:</strong> The local service <code>cloudflared</code>
                 forwards incoming traffic to on this host.</p>
-              <p style="margin:0 0 0.5rem 0; color:#ef4444;">• <strong>DO NOT EXPOSE:</strong> SMS Observer
+              <p style="margin:0 0 0.5rem 0; color:var(--danger);">• <strong>DO NOT EXPOSE:</strong> SMS Observer
                 (<code>localhost:6002</code>), Control Center (<code>localhost:8090</code>), and internal database
                 endpoints must NEVER be published to Cloudflare.</p>
               <p style="margin:0;">• Android SMS observer connects to <strong>Payment API</strong>
@@ -2938,13 +2980,36 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-heading">⚡ Webhook Endpoints &amp; Cryptographic Secrets</div>
-              <div class="card-subtext">Configure where real-time signed payment status events are dispatched via
-                HMAC-SHA256.</div>
+              <div class="card-heading">🔑 Merchant API Keys, Webhook Endpoints &amp; Cryptographic Secrets</div>
+              <div class="card-subtext">View, copy, or rotate your Publishable Merchant ID (<code>data-youpi-key</code> / <code>X-Merchant-Id</code>), Secret Merchant API Key (<code>X-Merchant-Key</code>), and HMAC-SHA256 Webhook Signing Secret.</div>
             </div>
           </div>
 
           <div style="display:flex; flex-direction:column; gap:1.25rem;">
+            <div>
+              <label style="display:block; font-size:0.82rem; font-weight:700; margin-bottom:0.35rem;">Merchant ID / Publishable Key (<code>data-youpi-key</code> &amp; <code>X-Merchant-Id</code>)</label>
+              <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                <input id="settingMerchantId" type="text" readonly
+                  style="flex:1; min-width:260px; color:#38bdf8; font-family:monospace; font-weight:600;" />
+                <button type="button" class="btn btn-secondary" onclick="copyFieldValue('settingMerchantId', 'Publishable Merchant ID')"
+                  style="padding:0.55rem 0.9rem; font-size:0.8rem;">📋 Copy</button>
+              </div>
+              <span style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:0.25rem;">Safe to embed in frontend HTML (<code>&lt;script src=".../youpi.js" data-youpi-key="..."&gt;</code>) and pass as <code>X-Merchant-Id</code> in REST API calls.</span>
+            </div>
+
+            <div>
+              <label style="display:block; font-size:0.82rem; font-weight:700; margin-bottom:0.35rem;">Secret Merchant API Key (<code>X-Merchant-Key</code>)</label>
+              <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                <input id="settingMerchantApiKey" type="text" readonly
+                  style="flex:1; min-width:260px; color:#34d399; font-family:monospace; font-weight:600;" />
+                <button type="button" class="btn btn-secondary" onclick="copyFieldValue('settingMerchantApiKey', 'Merchant API Key')"
+                  style="padding:0.55rem 0.9rem; font-size:0.8rem;">📋 Copy</button>
+                <button type="button" class="btn btn-secondary" onclick="rotateMerchantApiKey()"
+                  style="padding:0.55rem 0.9rem; font-size:0.8rem; border-color:#38bdf8; color:#38bdf8;">🔄 Generate / Rotate Key</button>
+              </div>
+              <span style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:0.25rem;">Backend-only secret key used to authenticate server-to-server payment creation and status queries via the <code>X-Merchant-Key</code> header.</span>
+            </div>
+
             <div>
               <label style="display:block; font-size:0.82rem; font-weight:700; margin-bottom:0.35rem;">Webhook
                 Destination URL</label>
@@ -2957,8 +3022,15 @@
             <div>
               <label style="display:block; font-size:0.82rem; font-weight:700; margin-bottom:0.35rem;">Webhook Secret
                 (HMAC-SHA256 Signing)</label>
-              <input id="settingWebhookSecret" type="text" readonly
-                style="width:100%; color:#94a3b8; font-family:monospace;" />
+              <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                <input id="settingWebhookSecret" type="text" readonly
+                  style="flex:1; min-width:260px; color:var(--text-muted); font-family:monospace;" />
+                <button type="button" class="btn btn-secondary" onclick="copyFieldValue('settingWebhookSecret', 'Webhook Secret')"
+                  style="padding:0.55rem 0.9rem; font-size:0.8rem;">📋 Copy</button>
+                <button type="button" class="btn btn-secondary" onclick="rotateWebhookSecret()"
+                  style="padding:0.55rem 0.9rem; font-size:0.8rem;">🔄 Rotate Secret</button>
+              </div>
+              <span style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:0.25rem;">Used to verify <code>X-Gateway-Signature</code> on incoming server-to-server webhooks. Keep strictly on your backend.</span>
             </div>
 
             <button class="btn btn-primary" style="width:auto; align-self:flex-start;"
@@ -2982,15 +3054,15 @@
           </div>
 
           <div
-            style="background:#090d16; border:1px solid var(--border); border-radius:0.75rem; padding:1.25rem; text-align:center; margin-bottom:1.5rem;">
-            <div style="font-size:0.85rem; font-weight:800; color:#cbd5e1; margin-bottom:0.75rem;">1. Scan to Pair Phone
+            style="background:var(--bg-box); border:1px solid var(--border); border-radius:0.75rem; padding:1.25rem; text-align:center; margin-bottom:1.5rem;">
+            <div style="font-size:0.85rem; font-weight:800; color:var(--text); margin-bottom:0.75rem;">1. Scan to Pair Phone
             </div>
             <div id="smsPairQrBox"
-              style="width:240px; height:240px; margin:0 auto; background:#ffffff; border-radius:0.75rem; padding:12px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0,0,0,0.5);">
+              style="width:240px; height:240px; margin:0 auto; background:var(--bg-card); border-radius:0.75rem; padding:12px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0,0,0,0.5);">
               Loading Pairing QR...
             </div>
-            <div style="font-size:0.8rem; color:#94a3b8; margin:0.75rem 0;">
-              Enrollment Secret: <code id="smsTokenVal2" style="color:#38bdf8; font-weight:700;">Loading...</code>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin:0.75rem 0;">
+              Enrollment Secret: <code id="smsTokenVal2" style="color:var(--info); font-weight:700;">Loading...</code>
               <button class="btn btn-secondary" style="font-size:0.7rem; padding:0.2rem 0.5rem; margin-left:0.5rem;"
                 onclick="copySmsToken()">📋 Copy</button>
             </div>
@@ -3002,7 +3074,7 @@
           </div>
 
           <div style="margin-bottom:1.5rem;">
-            <div style="font-size:0.88rem; font-weight:700; color:#f1f5f9; margin-bottom:0.5rem;">Paired Mobile
+            <div style="font-size:0.88rem; font-weight:700; color:var(--text-heading); margin-bottom:0.5rem;">Paired Mobile
               Observers</div>
             <div style="overflow-x:auto;">
               <table>
@@ -3025,8 +3097,8 @@
           </div>
 
           <!-- Interactive Test Bank SMS Sender -->
-          <div style="background:#090d16; border:1px solid var(--border); border-radius:0.5rem; padding:1rem;">
-            <div style="font-size:0.85rem; font-weight:700; color:#38bdf8; margin-bottom:0.5rem;">🧪 Test Bank SMS
+          <div style="background:var(--bg-box); border:1px solid var(--border); border-radius:0.5rem; padding:1rem;">
+            <div style="font-size:0.85rem; font-weight:700; color:var(--info); margin-bottom:0.5rem;">🧪 Test Bank SMS
               Parser</div>
             <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem; flex-wrap:wrap;">
               <input type="text" id="testSmsSender" value="HDFCBK" placeholder="Sender (e.g. HDFCBK)"
@@ -3036,7 +3108,7 @@
                 placeholder="SMS Body" style="flex:1; min-width:240px;" />
               <button class="btn btn-primary" onclick="sendTestBankSms()">Dispatch</button>
             </div>
-            <div id="testSmsResult" style="font-size:0.78rem; color:#94a3b8;"></div>
+            <div id="testSmsResult" style="font-size:0.78rem; color:var(--text-muted);"></div>
           </div>
         </div>
       </div>
@@ -3057,14 +3129,14 @@
 
             <!-- Hero Action Box: Automated One-Click Google Connect -->
             <div id="gmailConnectHeroBox"
-              style="background:linear-gradient(135deg, rgba(37,99,235,0.1), rgba(15,23,42,0.6)); border:1px solid rgba(20,184,166,0.3); border-radius:0.75rem; padding:1.25rem; margin-bottom:1.25rem; display:flex; flex-direction:column; gap:0.75rem;">
+              style="background:linear-gradient(135deg, rgba(37,99,235,0.1), var(--bg-card)); border:1px solid rgba(20,184,166,0.3); border-radius:0.75rem; padding:1.25rem; margin-bottom:1.25rem; display:flex; flex-direction:column; gap:0.75rem;">
               <div
                 style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.75rem;">
                 <div style="flex:1; min-width:260px;">
                   <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
                     <span id="gmailHeroStatusDot"
                       style="width:10px; height:10px; border-radius:50%; background:#ef4444; display:inline-block;"></span>
-                    <strong id="gmailHeroStatusTitle" style="font-size:0.95rem; color:#fff;">Google Account
+                    <strong id="gmailHeroStatusTitle" style="font-size:0.95rem; color:var(--text-heading);">Google Account
                       Disconnected</strong>
                   </div>
                   <div id="gmailHeroStatusDesc" style="font-size:0.82rem; color:var(--text-muted); line-height:1.4;">
@@ -3093,7 +3165,7 @@
                   </button>
                   <button type="button" id="btnGoogleDisconnect" class="btn btn-secondary"
                     onclick="disconnectGmailAccount()"
-                    style="display:none; font-size:0.8rem; padding:0.65rem 0.9rem; color:#f87171; border-color:#7f1d1d;">
+                    style="display:none; font-size:0.8rem; padding:0.65rem 0.9rem; color:var(--danger); border-color:#7f1d1d;">
                     ❌ Disconnect
                   </button>
                 </div>
@@ -3101,7 +3173,7 @@
 
               <!-- In-progress banner when popup is active -->
               <div id="gmailAuthInProgressBanner"
-                style="display:none; background:rgba(20,184,166,0.15); border:1px solid var(--primary); border-radius:0.4rem; padding:0.6rem 0.85rem; font-size:0.82rem; color:#93c5fd; align-items:center; gap:0.5rem;">
+                style="display:none; background:rgba(20,184,166,0.15); border:1px solid var(--primary); border-radius:0.4rem; padding:0.6rem 0.85rem; font-size:0.82rem; color:var(--info); align-items:center; gap:0.5rem;">
                 <span class="spinner"
                   style="width:14px; height:14px; border:2px solid var(--primary); border-top-color:transparent; border-radius:50%; display:inline-block; animation:spin 1s linear infinite;"></span>
                 <span>Google Authorization Window Active. Select your account and grant permissions to complete
@@ -3111,20 +3183,20 @@
 
             <!-- Live Connection Status Details -->
             <div
-              style="background:#090d16; border:1px solid #1e293b; border-radius:0.5rem; padding:0.85rem; margin-bottom:1rem; font-size:0.8rem; display:grid; grid-template-columns:1fr 1fr; gap:0.6rem;">
-              <div><span style="color:#64748b;">OAuth Status:</span> <strong id="gmailOAuthStatusText"
-                  style="color:#f87171;">DISCONNECTED</strong></div>
-              <div><span style="color:#64748b;">Token Status:</span> <strong id="gmailTokenStatusText"
-                  style="color:#64748b;">NOT CONFIGURED</strong></div>
+              style="background:var(--bg-box); border:1px solid var(--border); border-radius:0.5rem; padding:0.85rem; margin-bottom:1rem; font-size:0.8rem; display:grid; grid-template-columns:1fr 1fr; gap:0.6rem;">
+              <div><span style="color:var(--text-muted);">OAuth Status:</span> <strong id="gmailOAuthStatusText"
+                  style="color:var(--danger);">DISCONNECTED</strong></div>
+              <div><span style="color:var(--text-muted);">Token Status:</span> <strong id="gmailTokenStatusText"
+                  style="color:var(--text-muted);">NOT CONFIGURED</strong></div>
               <div style="grid-column: span 2; display:flex; align-items:center; gap:0.4rem;">
-                <span style="color:#64748b;">Connected Account:</span>
-                <strong id="gmailConnectedAccountText" style="color:#38bdf8; font-family:monospace;">No account
+                <span style="color:var(--text-muted);">Connected Account:</span>
+                <strong id="gmailConnectedAccountText" style="color:var(--info); font-family:monospace;">No account
                   authorized</strong>
               </div>
-              <div><span style="color:#64748b;">Last Successful Poll:</span> <span id="gmailLastPollText"
-                  style="color:#94a3b8;">Never</span></div>
-              <div><span style="color:#64748b;">Observer Pipeline:</span> <span id="gmailLastSentText"
-                  style="color:#94a3b8;">Standby</span></div>
+              <div><span style="color:var(--text-muted);">Last Successful Poll:</span> <span id="gmailLastPollText"
+                  style="color:var(--text-muted);">Never</span></div>
+              <div><span style="color:var(--text-muted);">Observer Pipeline:</span> <span id="gmailLastSentText"
+                  style="color:var(--text-muted);">Standby</span></div>
             </div>
 
             <!-- Secondary Actions -->
@@ -3141,8 +3213,8 @@
 
             <!-- Advanced Collapsible Configuration -->
             <details
-              style="background:rgba(15,23,42,0.4); border:1px solid #1e293b; border-radius:0.5rem; padding:0.6rem 0.85rem;">
-              <summary style="cursor:pointer; font-size:0.78rem; font-weight:700; color:#94a3b8; user-select:none;">
+              style="background:rgba(15,23,42,0.4); border:1px solid var(--border); border-radius:0.5rem; padding:0.6rem 0.85rem;">
+              <summary style="cursor:pointer; font-size:0.78rem; font-weight:700; color:var(--text-muted); user-select:none;">
                 ⚙️ Advanced OAuth Credentials &amp; Manual Override (Optional)
               </summary>
               <div style="display:flex; flex-direction:column; gap:0.75rem; margin-top:0.85rem;">
@@ -3171,7 +3243,7 @@
                       onclick="copyGmailRedirectUri()">📋 Copy</button>
                   </div>
                   <input type="text" id="gmailRedirectUriInput" readonly
-                    style="width:100%; font-family:monospace; font-size:0.8rem; background:#020617; color:#38bdf8;" />
+                    style="width:100%; font-family:monospace; font-size:0.8rem; background:var(--bg-input); color:var(--info);" />
                 </div>
                 <div>
                   <label
@@ -3199,22 +3271,22 @@
             </div>
 
             <div
-              style="background:#090d16; border:1px solid var(--border); border-radius:0.75rem; padding:1rem; margin-bottom:1rem;">
+              style="background:var(--bg-box); border:1px solid var(--border); border-radius:0.75rem; padding:1rem; margin-bottom:1rem;">
               <div id="waLiveStatusDisplay">
                 <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem;">
-                  <span id="waDotIndicator" style="color:#fbbf24;">●</span>
-                  <strong id="waStateTitle" style="color:#fff;">Pairing Standby</strong>
+                  <span id="waDotIndicator" style="color:var(--warning);">●</span>
+                  <strong id="waStateTitle" style="color:var(--text-heading);">Pairing Standby</strong>
                 </div>
-                <div id="waPhoneDisplay" style="font-size:0.85rem; color:#94a3b8; font-family:monospace;">
+                <div id="waPhoneDisplay" style="font-size:0.85rem; color:var(--text-muted); font-family:monospace;">
                   Phone Number: Not Linked
                 </div>
               </div>
             </div>
 
             <div id="waQrBox"
-              style="background:#ffffff; border-radius:0.75rem; padding:1rem; display:inline-block; margin:0 auto 1rem auto; text-align:center;">
+              style="background:var(--bg-card); border-radius:0.75rem; padding:1rem; display:inline-block; margin:0 auto 1rem auto; text-align:center;">
               <div id="waQrPlaceholder"
-                style="width:240px; height:240px; display:flex; align-items:center; justify-content:center; color:#0f172a; font-size:0.85rem; text-align:center; padding:1rem;">
+                style="width:240px; height:240px; display:flex; align-items:center; justify-content:center; color:var(--text-heading); font-size:0.85rem; text-align:center; padding:1rem;">
                 Click "Connect / Refresh QR" to pair device
               </div>
               <img id="waQrImg" src="" alt="WhatsApp Pairing QR" style="width:240px; height:240px; display:none; image-rendering:pixelated;" onerror="this.style.display='none'; if(document.getElementById('waQrPlaceholder')){ document.getElementById('waQrPlaceholder').style.display='flex'; document.getElementById('waQrPlaceholder').innerText='QR preview unavailable. Click Refresh QR.'; }" />
@@ -3365,28 +3437,28 @@
   <div id="gmailGuideModal" class="modal-overlay" hidden>
     <div class="modal-box" style="max-width:720px; max-height:85vh; overflow-y:auto;">
       <div
-        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid #1e293b; padding-bottom:0.75rem;">
+        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.75rem;">
         <h3 style="color:#fff; margin:0; font-size:1.15rem;">📖 Official Gmail API &amp; Refresh Token Guide</h3>
         <button class="btn btn-secondary" style="padding:0.25rem 0.5rem;" onclick="closeGmailGuideModal()">✕</button>
       </div>
-      <div style="font-size:0.82rem; color:#cbd5e1; line-height:1.6;">
+      <div style="font-size:0.82rem; color:var(--text); line-height:1.6;">
 
         <div
-          style="background:#0f172a; border:1px solid #1e293b; border-radius:0.5rem; padding:0.75rem 1rem; margin-bottom:1rem;">
-          <strong style="color:#38bdf8; display:block; font-size:0.9rem; margin-bottom:0.25rem;">⚡ How to get your
+          style="background:var(--bg-box); border:1px solid var(--border); border-radius:0.5rem; padding:0.75rem 1rem; margin-bottom:1rem;">
+          <strong style="color:var(--info); display:block; font-size:0.9rem; margin-bottom:0.25rem;">⚡ How to get your
             Google Refresh Token (Choose either method):</strong>
-          <span style="color:#94a3b8; font-size:0.78rem;">Both methods work 100% reliably. Method 1 is automated
+          <span style="color:var(--text-muted); font-size:0.78rem;">Both methods work 100% reliably. Method 1 is automated
             1-click; Method 2 uses Google's official OAuth Playground.</span>
         </div>
 
         <div
-          style="border:1px solid #334155; border-radius:0.5rem; padding:0.85rem; margin-bottom:1rem; background:#0b1120;">
-          <h4 style="color:#34d399; margin:0 0 0.5rem 0; font-size:0.95rem;">Method 1: Direct 1-Click Authorize
+          style="border:1px solid var(--border); border-radius:0.5rem; padding:0.85rem; margin-bottom:1rem; background:var(--bg-box);">
+          <h4 style="color:var(--success); margin:0 0 0.5rem 0; font-size:0.95rem;">Method 1: Direct 1-Click Authorize
             (Automatic)</h4>
           <ol style="padding-left:1.25rem; display:flex; flex-direction:column; gap:0.35rem; margin:0;">
             <li>In <strong>Google Cloud Console</strong> &gt; <em>Credentials</em>, add this exact redirect URI:
               <code
-                style="color:#38bdf8; display:block; margin:0.2rem 0; background:#020617; padding:2px 6px; border-radius:4px;"
+                style="color:var(--info); display:block; margin:0.2rem 0; background:var(--bg-input); padding:2px 6px; border-radius:4px;"
                 id="guideProdUri">(loaded from your configured domain)</code>
             </li>
             <li>Under <em>OAuth consent screen</em> &gt; <em>Test users</em>, ensure your personal Gmail address is
@@ -3400,12 +3472,12 @@
         </div>
 
         <div
-          style="border:1px solid #334155; border-radius:0.5rem; padding:0.85rem; margin-bottom:1rem; background:#0b1120;">
-          <h4 style="color:#38bdf8; margin:0 0 0.5rem 0; font-size:0.95rem;">Method 2: Google OAuth 2.0 Playground
+          style="border:1px solid var(--border); border-radius:0.5rem; padding:0.85rem; margin-bottom:1rem; background:var(--bg-box);">
+          <h4 style="color:var(--info); margin:0 0 0.5rem 0; font-size:0.95rem;">Method 2: Google OAuth 2.0 Playground
             (Manual — 60 Seconds)</h4>
           <ol style="padding-left:1.25rem; display:flex; flex-direction:column; gap:0.35rem; margin:0;">
             <li>Open <a href="https://developers.google.com/oauthplayground" target="_blank"
-                style="color:#38bdf8; text-decoration:underline;">Google OAuth 2.0 Playground
+                style="color:var(--info); text-decoration:underline;">Google OAuth 2.0 Playground
                 (developers.google.com/oauthplayground)</a> in a new tab.</li>
             <li>Click the <strong>⚙️ Gear Icon (OAuth 2.0 configuration)</strong> at the top right of the page.</li>
             <li>Check the box: <strong>"Use your own OAuth credentials"</strong>.</li>
@@ -3432,7 +3504,7 @@
         </div>
 
         <div
-          style="background:rgba(245,158,11,0.1); border:1px solid #d97706; border-radius:0.5rem; padding:0.75rem; font-size:0.75rem; color:#fde68a;">
+          style="background:rgba(245,158,11,0.1); border:1px solid #d97706; border-radius:0.5rem; padding:0.75rem; font-size:0.75rem; color:var(--warning);">
           <strong>⚠️ Google Cloud Console Setup Note:</strong><br>
           Make sure the <strong>Gmail API</strong> is enabled in <em>APIs &amp; Services &gt; Library</em> and the OAuth
           consent screen publishing status is set to "Testing" with your Gmail added as a Test User.
@@ -3451,15 +3523,15 @@
   <!-- 1. Ban Details Modal (Section 9.2: Complete Evidence & Verbatim Raw Message) -->
   <div id="banDetailsModal" class="modal-overlay" hidden>
     <div class="modal-box"
-      style="max-width:850px; max-height:90vh; overflow-y:auto; background:#0f172a; border:1px solid #334155; border-radius:12px; padding:1.75rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.7);">
+      style="max-width:850px; max-height:90vh; overflow-y:auto; background:var(--bg-box); border:1px solid var(--border); border-radius:12px; padding:1.75rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.7);">
       <div
-        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; border-bottom:1px solid #1e293b; padding-bottom:1rem;">
+        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; border-bottom:1px solid var(--border); padding-bottom:1rem;">
         <div style="display:flex; align-items:center; gap:0.6rem;">
           <span style="font-size:1.5rem;">🚨</span>
           <div>
-            <h3 style="color:#f87171; margin:0; font-size:1.25rem; font-weight:800; letter-spacing:-0.02em;">Forensic
+            <h3 style="color:var(--danger); margin:0; font-size:1.25rem; font-weight:800; letter-spacing:-0.02em;">Forensic
               Security &amp; Ban Evidence Dossier</h3>
-            <div style="color:#94a3b8; font-size:0.78rem;">Immutable tamper-proof record of fraudulent payment injection
+            <div style="color:var(--text-muted); font-size:0.78rem;">Immutable tamper-proof record of fraudulent payment injection
               attempt</div>
           </div>
         </div>
@@ -3467,12 +3539,12 @@
       </div>
 
       <div id="banDetailsModalBody">
-        <div style="text-align:center; padding:2rem; color:#94a3b8;">Loading ban evidence...</div>
+        <div style="text-align:center; padding:2rem; color:var(--text-muted);">Loading ban evidence...</div>
       </div>
 
       <div
-        style="margin-top:1.5rem; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #1e293b; padding-top:1rem;">
-        <div style="font-size:0.75rem; color:#64748b;">Security Engine v2 &bull; YOUPI PG</div>
+        style="margin-top:1.5rem; display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:1rem;">
+        <div style="font-size:0.75rem; color:var(--text-muted);">Security Engine v2 &bull; {{APP_NAME}}</div>
         <div style="display:flex; gap:0.75rem;">
           <button class="btn btn-secondary" onclick="closeBanDetailsModal()">Close</button>
           <button id="btnModalUnbanTrigger" class="btn btn-success"
@@ -3486,29 +3558,29 @@
   <!-- 2. Unban Confirmation Modal (Section 9.3) -->
   <div id="unbanConfirmModal" class="modal-overlay" hidden>
     <div class="modal-box"
-      style="max-width:540px; background:#0f172a; border:1px solid #334155; border-radius:12px; padding:1.75rem;">
+      style="max-width:540px; background:var(--bg-box); border:1px solid var(--border); border-radius:12px; padding:1.75rem;">
       <div
-        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid #1e293b; padding-bottom:0.75rem;">
-        <h3 style="color:#34d399; margin:0; display:flex; align-items:center; gap:0.5rem; font-size:1.15rem;">
+        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.75rem;">
+        <h3 style="color:var(--success); margin:0; display:flex; align-items:center; gap:0.5rem; font-size:1.15rem;">
           <span>🔓</span> Restore Customer Access (Unban)
         </h3>
         <button class="btn btn-secondary" style="padding:0.25rem 0.5rem;" onclick="closeUnbanModal()">✕</button>
       </div>
 
-      <p style="font-size:0.88rem; color:#cbd5e1; line-height:1.6; margin-bottom:1.25rem;">
-        Are you sure you want to unban customer <strong id="unbanCustName" style="color:#ffffff;"></strong> (<span
-          id="unbanCustPhone" style="color:#38bdf8; font-family:monospace;"></span>)?
-        <br><span style="color:#94a3b8; font-size:0.8rem; display:block; margin-top:0.4rem;">This will restore their
-          status to <strong style="color:#34d399;">ACTIVE</strong> and immediately restore their ability to initiate
+      <p style="font-size:0.88rem; color:var(--text); line-height:1.6; margin-bottom:1.25rem;">
+        Are you sure you want to unban customer <strong id="unbanCustName" style="color:var(--text-heading);"></strong> (<span
+          id="unbanCustPhone" style="color:var(--info); font-family:monospace;"></span>)?
+        <br><span style="color:var(--text-muted); font-size:0.8rem; display:block; margin-top:0.4rem;">This will restore their
+          status to <strong style="color:var(--success);">ACTIVE</strong> and immediately restore their ability to initiate
           payments on the gateway.</span>
       </p>
 
       <div style="margin-bottom:1.25rem;">
-        <label style="display:block; font-size:0.8rem; font-weight:700; color:#e2e8f0; margin-bottom:0.4rem;">
-          Mandatory Reason for Unbanning <span style="color:#f87171;">*</span>
+        <label style="display:block; font-size:0.8rem; font-weight:700; color:var(--text-heading); margin-bottom:0.4rem;">
+          Mandatory Reason for Unbanning <span style="color:var(--danger);">*</span>
         </label>
         <select id="unbanReasonSelect" class="form-control"
-          style="width:100%; margin-bottom:0.5rem; background:#020617; border:1px solid #334155; color:#f8fafc; border-radius:6px; padding:0.55rem; font-size:0.85rem;"
+          style="width:100%; margin-bottom:0.5rem; background:var(--bg-input); border:1px solid var(--border); color:var(--text-heading); border-radius:6px; padding:0.55rem; font-size:0.85rem;"
           onchange="handleUnbanReasonChange()">
           <option value="Customer verified via phone call">Customer verified via phone call</option>
           <option value="False positive investigated">False positive investigated</option>
@@ -3517,11 +3589,11 @@
           <option value="OTHER">Other custom reason...</option>
         </select>
         <input type="text" id="unbanReasonCustom" placeholder="Specify mandatory custom unban reason..."
-          style="width:100%; display:none; background:#020617; border:1px solid #334155; color:#f8fafc; border-radius:6px; padding:0.55rem; font-size:0.85rem;">
+          style="width:100%; display:none; background:var(--bg-input); border:1px solid var(--border); color:var(--text-heading); border-radius:6px; padding:0.55rem; font-size:0.85rem;">
       </div>
 
       <div
-        style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem; border-top:1px solid #1e293b; padding-top:1rem;">
+        style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem; border-top:1px solid var(--border); padding-top:1rem;">
         <button class="btn btn-secondary" onclick="closeUnbanModal()">Cancel</button>
         <button id="btnConfirmUnbanAction" class="btn btn-success"
           style="background:#059669; border-color:#059669; font-weight:700;" onclick="executeUnbanCustomer()">Confirm
@@ -3533,56 +3605,100 @@
   <!-- 3. Manual Ban Modal (Section 9.4) -->
   <div id="manualBanModal" class="modal-overlay" hidden>
     <div class="modal-box"
-      style="max-width:560px; background:#0f172a; border:1px solid #334155; border-radius:12px; padding:1.75rem;">
+      style="max-width:560px; background:var(--bg-box); border:1px solid var(--border); border-radius:12px; padding:1.75rem;">
       <div
-        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid #1e293b; padding-bottom:0.75rem;">
-        <h3 style="color:#f87171; margin:0; display:flex; align-items:center; gap:0.5rem; font-size:1.15rem;">
+        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.75rem;">
+        <h3 style="color:var(--danger); margin:0; display:flex; align-items:center; gap:0.5rem; font-size:1.15rem;">
           <span>🚫</span> Manually Ban Abusive Customer
         </h3>
         <button class="btn btn-secondary" style="padding:0.25rem 0.5rem;" onclick="closeManualBanModal()">✕</button>
       </div>
 
       <div style="margin-bottom:1rem;">
-        <label style="display:block; font-size:0.8rem; font-weight:700; color:#e2e8f0; margin-bottom:0.4rem;">
-          Select Customer <span style="color:#f87171;">*</span>
+        <label style="display:block; font-size:0.8rem; font-weight:700; color:var(--text-heading); margin-bottom:0.4rem;">
+          Select Customer <span style="color:var(--danger);">*</span>
         </label>
         <select id="manualBanCustomerSelect"
-          style="width:100%; background:#020617; border:1px solid #334155; color:#f8fafc; border-radius:6px; padding:0.55rem; font-size:0.85rem;"
+          style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-heading); border-radius:6px; padding:0.55rem; font-size:0.85rem;"
           onchange="handleManualBanCustomerChange()">
           <option value="">-- Choose Existing Customer --</option>
         </select>
       </div>
 
       <div id="manualBanCustomInputs" style="margin-bottom:1rem;">
-        <label style="display:block; font-size:0.8rem; font-weight:700; color:#e2e8f0; margin-bottom:0.4rem;">
+        <label style="display:block; font-size:0.8rem; font-weight:700; color:var(--text-heading); margin-bottom:0.4rem;">
           Or Enter Customer ID / Phone / Email
         </label>
         <input type="text" id="manualBanCustomerIdInput" placeholder="Customer UUID, mobile (+91...), or email"
-          style="width:100%; background:#020617; border:1px solid #334155; color:#f8fafc; border-radius:6px; padding:0.55rem; font-size:0.85rem;">
+          style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-heading); border-radius:6px; padding:0.55rem; font-size:0.85rem;">
       </div>
 
       <div style="margin-bottom:1rem;">
-        <label style="display:block; font-size:0.8rem; font-weight:700; color:#e2e8f0; margin-bottom:0.4rem;">
-          Mandatory Reason <span style="color:#f87171;">*</span>
+        <label style="display:block; font-size:0.8rem; font-weight:700; color:var(--text-heading); margin-bottom:0.4rem;">
+          Mandatory Reason <span style="color:var(--danger);">*</span>
         </label>
         <input type="text" id="manualBanReasonInput" value="MANUAL_BAN"
           placeholder="e.g. Abusive behavior, chargeback dispute, manual fraud notice"
-          style="width:100%; background:#020617; border:1px solid #334155; color:#f8fafc; border-radius:6px; padding:0.55rem; font-size:0.85rem;">
+          style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-heading); border-radius:6px; padding:0.55rem; font-size:0.85rem;">
       </div>
 
       <div style="margin-bottom:1.25rem;">
-        <label style="display:block; font-size:0.8rem; font-weight:700; color:#e2e8f0; margin-bottom:0.4rem;">
+        <label style="display:block; font-size:0.8rem; font-weight:700; color:var(--text-heading); margin-bottom:0.4rem;">
           Optional Notes / Investigation Details
         </label>
         <textarea id="manualBanNotesInput" rows="3"
           placeholder="Additional merchant operator notes, reference ticket, etc."
-          style="width:100%; background:#020617; border:1px solid #334155; color:#f8fafc; border-radius:6px; padding:0.55rem; font-size:0.85rem; resize:vertical;"></textarea>
+          style="width:100%; background:var(--bg-input); border:1px solid var(--border); color:var(--text-heading); border-radius:6px; padding:0.55rem; font-size:0.85rem; resize:vertical;"></textarea>
       </div>
 
-      <div style="display:flex; justify-content:flex-end; gap:0.75rem; border-top:1px solid #1e293b; padding-top:1rem;">
+      <div style="display:flex; justify-content:flex-end; gap:0.75rem; border-top:1px solid var(--border); padding-top:1rem;">
         <button class="btn btn-secondary" onclick="closeManualBanModal()">Cancel</button>
         <button class="btn btn-danger" style="background:#dc2626; border-color:#dc2626; font-weight:700;"
           onclick="executeManualBan()">Confirm Ban</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Create / Onboard New Merchant -->
+  <div id="newMerchantModal" class="modal-overlay" hidden>
+    <div class="modal-box" style="max-width:540px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid #1e293b; padding-bottom:0.75rem;">
+        <h3 style="color:#fff; margin:0; font-size:1.15rem;">🏪 Onboard New Merchant / Store</h3>
+        <button class="btn btn-secondary" style="padding:0.25rem 0.5rem;" onclick="closeNewMerchantModal()">✕</button>
+      </div>
+      <div style="font-size:0.85rem; color:#cbd5e1; line-height:1.6;">
+        <div style="margin-bottom:1rem;">
+          <label style="display:block; font-size:0.82rem; font-weight:700; color:#e2e8f0; margin-bottom:0.35rem;">Store / Business Name *</label>
+          <input id="modalMerchantName" type="text" placeholder="e.g. Acme Supermart or Apex Retail" style="width:100%; background:#020617; border:1px solid #334155; color:#f8fafc; border-radius:6px; padding:0.55rem; font-size:0.85rem;" oninput="syncModalSlug(this.value)" />
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:1rem;">
+          <div>
+            <label style="display:block; font-size:0.82rem; font-weight:700; color:#e2e8f0; margin-bottom:0.35rem;">Merchant Slug</label>
+            <input id="modalMerchantSlug" type="text" placeholder="acme-supermart" style="width:100%; background:#020617; border:1px solid #334155; color:#f8fafc; border-radius:6px; padding:0.55rem; font-size:0.85rem;" />
+          </div>
+          <div>
+            <label style="display:block; font-size:0.82rem; font-weight:700; color:#e2e8f0; margin-bottom:0.35rem;">UPI ID / VPA</label>
+            <input id="modalMerchantVpa" type="text" placeholder="e.g. acme@okhdfcbank" style="width:100%; background:#020617; border:1px solid #334155; color:#f8fafc; border-radius:6px; padding:0.55rem; font-size:0.85rem;" />
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:1rem;">
+          <div>
+            <label style="display:block; font-size:0.82rem; font-weight:700; color:#e2e8f0; margin-bottom:0.35rem;">Contact Email</label>
+            <input id="modalMerchantEmail" type="email" placeholder="contact@acme.com" style="width:100%; background:#020617; border:1px solid #334155; color:#f8fafc; border-radius:6px; padding:0.55rem; font-size:0.85rem;" />
+          </div>
+          <div>
+            <label style="display:block; font-size:0.82rem; font-weight:700; color:#e2e8f0; margin-bottom:0.35rem;">Contact Phone</label>
+            <input id="modalMerchantPhone" type="tel" placeholder="9876543210" style="width:100%; background:#020617; border:1px solid #334155; color:#f8fafc; border-radius:6px; padding:0.55rem; font-size:0.85rem;" />
+          </div>
+        </div>
+        <div style="margin-bottom:1.25rem;">
+          <label style="display:block; font-size:0.82rem; font-weight:700; color:#e2e8f0; margin-bottom:0.35rem;">Webhook Notification URL (Optional)</label>
+          <input id="modalMerchantWebhook" type="url" placeholder="https://acme.com/api/webhook" style="width:100%; background:#020617; border:1px solid #334155; color:#f8fafc; border-radius:6px; padding:0.55rem; font-size:0.85rem;" />
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:0.75rem; border-top:1px solid #1e293b; padding-top:1rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeNewMerchantModal()">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="submitNewMerchant()">Create Merchant</button>
+        </div>
       </div>
     </div>
   </div>
@@ -3692,18 +3808,18 @@
           const overlay = document.createElement('div');
           overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(15,23,42,.85);display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,sans-serif';
           const box = document.createElement('form');
-          box.style.cssText = 'background:#fff;color:#0f172a;border-radius:12px;padding:24px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.4)';
+          box.style.cssText = 'background:var(--bg-card);color:var(--text-heading);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.4)';
           const title = document.createElement('h3');
           title.textContent = 'Admin token required';
           title.style.margin = '0 0 8px';
           const hint = document.createElement('p');
           hint.textContent = message || 'Enter the admin API token (ADMIN_API_TOKEN, or the contents of data/.secrets/admin_api_token on the server).';
-          hint.style.cssText = 'margin:0 0 12px;font-size:14px;color:#475569';
+          hint.style.cssText = 'margin:0 0 12px;font-size:14px;color:var(--text-muted)';
           const input = document.createElement('input');
           input.type = 'password';
           input.autocomplete = 'off';
           input.required = true;
-          input.style.cssText = 'width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-bottom:12px';
+          input.style.cssText = 'width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border-hover);border-radius:8px;margin-bottom:12px';
           const btn = document.createElement('button');
           btn.type = 'submit';
           btn.textContent = 'Unlock';
@@ -3981,7 +4097,7 @@
       } catch (e) {
         console.warn('loadServices error:', e);
         const tbody = document.getElementById('servicesTableBody');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#ef4444; padding:1.5rem;">⚠️ Supervisor API unavailable (Port 8090). Ensure services are running.</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--danger); padding:1.5rem;">⚠️ Supervisor API unavailable (Port 8090). Ensure services are running.</td></tr>`;
       }
     }
 
@@ -4015,7 +4131,7 @@
             <div style="font-size:0.75rem; color:var(--text-muted); font-family:monospace;">${escapeHtml(s.id)}</div>
           </td>
           <td><code style="color:#f59e0b; background:#070c17; padding:2px 6px; border-radius:4px; font-weight:700;">${s.port}</code></td>
-          <td><code style="color:#38bdf8;">${s.pid || '-'}</code></td>
+          <td><code style="color:var(--info);">${s.pid || '-'}</code></td>
           <td><span class="badge ${badgeClass}">${statusIcon} ${s.status}</span></td>
           <td style="font-size:0.8rem; color:var(--text-muted);">${uptimeStr}</td>
           <td>
@@ -4382,7 +4498,7 @@
         const m = Math.floor(remainingSec / 60);
         const s = remainingSec % 60;
         content.innerHTML = `
-        <div style="font-size:1.75rem; font-weight:800; color:#38bdf8;">₹${(Number(currentSlot.amountPaise) / 100).toFixed(2)}</div>
+        <div style="font-size:1.75rem; font-weight:800; color:var(--info);">₹${(Number(currentSlot.amountPaise) / 100).toFixed(2)}</div>
         <div style="font-weight:700; margin:0.35rem 0;">Order #${escapeHtml(currentSlot.orderId)}</div>
         <div class="badge badge-info">ACTIVE (⏱ ${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')} remaining)</div>
       `;
@@ -4401,7 +4517,7 @@
         box.className = 'slot-card busy-proc';
         const remainingSec = currentSlot.processingExpiresAt ? Math.max(0, Math.ceil((new Date(currentSlot.processingExpiresAt).getTime() - Date.now()) / 1000)) : 0;
         content.innerHTML = `
-        <div style="font-size:1.75rem; font-weight:800; color:#fbbf24;">₹${(Number(currentSlot.amountPaise) / 100).toFixed(2)}</div>
+        <div style="font-size:1.75rem; font-weight:800; color:var(--warning);">₹${(Number(currentSlot.amountPaise) / 100).toFixed(2)}</div>
         <div style="font-weight:700; margin:0.35rem 0;">Order #${escapeHtml(currentSlot.orderId)}</div>
         <div class="badge badge-warning">VERIFYING (⏳ ${remainingSec}s remaining)</div>
       `;
@@ -4437,7 +4553,7 @@
       let dualVerify = 0;
 
       payments.forEach(p => {
-        if (p.status === 'SUCCESS') {
+        if (p.status === 'RECONCILED' || p.status === 'SUCCESS') {
           successCount++;
           successVol += Number(p.amountPaise);
           if (p.verificationLevel >= 2) dualVerify++;
@@ -4502,7 +4618,7 @@
       <tr>
         <td><strong>Order #${escapeHtml(p.orderId)}</strong></td>
         <td><code style="font-size:0.75rem;">${p.id.substring(0, 16)}...</code></td>
-        <td><strong style="color:#34d399; font-size:1.15rem;">₹${(Number(p.amountPaise) / 100).toFixed(2)}</strong></td>
+        <td><strong style="color:var(--success); font-size:1.15rem;">₹${(Number(p.amountPaise) / 100).toFixed(2)}</strong></td>
         <td>
           <span class="badge ${p.method === 'CASH_COUNTER' ? 'badge-success' : 'badge-info'}">
             ${p.method === 'CASH_COUNTER' ? '💵 Cash at Till' : '💳 Card at POS'}
@@ -4580,7 +4696,7 @@
         <tr>
           <td><strong>Order #${escapeHtml(o.orderId)}</strong></td>
           <td><code style="font-size:0.75rem;">${o.paymentId.substring(0, 16)}...</code></td>
-          <td><strong style="color:#34d399; font-size:1.15rem;">₹${(Number(o.amountPaise) / 100).toFixed(2)}</strong></td>
+          <td><strong style="color:var(--success); font-size:1.15rem;">₹${(Number(o.amountPaise) / 100).toFixed(2)}</strong></td>
           <td>${escapeHtml(o.customerName || 'Customer')}</td>
           <td>${escapeHtml(o.customerPhone || '-')}</td>
           <td>${new Date(o.placedAt).toLocaleTimeString()}</td>
@@ -4625,7 +4741,7 @@
 
         tbody.innerHTML = (data.payments || []).map(p => {
           let verifyBadge = '<span style="color:var(--text-muted); font-size:0.75rem;">-</span>';
-          if (p.status === 'SUCCESS') {
+          if (p.status === 'SUCCESS' || p.status === 'OBSERVED_SUCCESS' || p.status === 'RECONCILED' || p.status === 'MANUAL_REVIEW') {
           const tag = p.verificationTag || (p.verificationLevel >= 2 ? 'Dual Verification' : 'Single Verification');
           if (p.verificationLevel >= 2) {
             verifyBadge = `<span class="badge badge-success">✓✓ ${escapeHtmlValue(tag)}</span>`;
@@ -4635,7 +4751,7 @@
         }
 
           const sourcesChips = (p.verificationSources && p.verificationSources.length > 0)
-            ? p.verificationSources.map(s => `<code style="font-size:0.7rem; background:#0f172a; padding:0.15rem 0.35rem; border-radius:0.25rem; margin-right:0.2rem; border:1px solid var(--border); color:#93c5fd;">${s === 'GOOGLE_MESSAGES' ? 'SMS' : escapeHtmlValue(s)}</code>`).join('')
+            ? p.verificationSources.map(s => `<code style="font-size:0.7rem; background:var(--bg-box); padding:0.15rem 0.35rem; border-radius:0.25rem; margin-right:0.2rem; border:1px solid var(--border); color:var(--info);">${s === 'GOOGLE_MESSAGES' ? 'SMS' : escapeHtmlValue(s)}</code>`).join('')
             : '<span style="color:var(--text-muted); font-size:0.75rem;">-</span>';
 
           return `
@@ -4644,7 +4760,7 @@
             <td><code>${p.id}</code></td>
             <td>₹${(Number(p.amountPaise) / 100).toFixed(2)}</td>
             <td>${escapeHtmlValue(p.method)}</td>
-            <td><span class="badge ${p.status === 'SUCCESS' ? 'badge-success' : (p.status === 'ACTIVE' ? 'badge-info' : 'badge-danger')}">${escapeHtmlValue(p.status)}</span></td>
+            <td><span class="badge ${p.status === 'RECONCILED' || p.status === 'SUCCESS' ? 'badge-success' : (p.status === 'OBSERVED_SUCCESS' ? 'badge-warning' : (p.status === 'MANUAL_REVIEW' ? 'badge-danger' : (p.status === 'ACTIVE' ? 'badge-info' : 'badge-danger')))}">${escapeHtmlValue(p.status === 'OBSERVED_SUCCESS' ? 'Observed (not reconciled)' : p.status)}</span></td>
             <td>${verifyBadge}</td>
             <td>${sourcesChips}</td>
             <td>${escapeHtmlValue(new Date(p.createdAt).toLocaleTimeString())}</td>
@@ -4699,7 +4815,7 @@
 
     function updateLiveWhiteLabelPreview() {
       const bName = document.getElementById('settingBusinessName')?.value.trim() || 'Merchant Checkout';
-      const appName = document.getElementById('settingAppName')?.value.trim() || 'YOUPI PG';
+      const appName = document.getElementById('settingAppName')?.value.trim() || '{{APP_NAME}}' || 'YOUPI PG';
       const logoUrl = document.getElementById('settingLogoUrl')?.value.trim() || '';
       const primaryColor = document.getElementById('settingPrimaryColor')?.value.trim() || '#0b63e5';
       const headerTheme = document.getElementById('settingHeaderTheme')?.value || 'gradient';
@@ -4784,7 +4900,7 @@
           renderActiveVpaCallout(upiData);
         }
 
-        const mRes = await fetch(`${API_BASE}/api/v1/admin/merchant-settings`);
+        const mRes = await fetch(`${API_BASE}/api/v1/admin/merchant-settings?merchantId=${encodeURIComponent(currentMerchantId)}`);
         if (mRes.ok) {
           const mData = await mRes.json();
           currentMerchantId = mData.merchantId || currentMerchantId || '00000000-0000-0000-0000-000000000001';
@@ -4801,11 +4917,14 @@
             if (el) el.checked = Boolean(checked);
           };
 
+          setVal('settingMerchantId', mData.publishableKey || mData.merchantId || currentMerchantId);
+          setVal('settingMerchantApiKey', mData.merchantKey || branding.merchantApiKey || mData.webhookSecret || '');
           setVal('settingBusinessName', mData.businessName);
           setVal('settingWebhookUrl', mData.webhookUrl);
           setVal('settingWebhookSecret', mData.webhookSecret);
+          renderMerchantCredentials(mData);
 
-          setVal('settingAppName', branding.appName || 'YOUPI PG');
+          setVal('settingAppName', branding.appName || '{{APP_NAME}}' || 'YOUPI PG');
           setVal('settingLogoUrl', branding.logoUrl);
           setVal('settingSidebarNotice', branding.sidebarNotice);
           setVal('settingFooterGuarantee', branding.footerGuarantee);
@@ -4983,7 +5102,7 @@
     async function saveMerchantBrandingAndToggles() {
       settingsLoaded = true;
       const businessName = document.getElementById('settingBusinessName')?.value.trim() || '';
-      const appName = document.getElementById('settingAppName')?.value.trim() || 'YOUPI PG';
+      const appName = document.getElementById('settingAppName')?.value.trim() || '{{APP_NAME}}' || 'YOUPI PG';
       const logoUrl = document.getElementById('settingLogoUrl')?.value.trim() || '';
       const primaryColor = document.getElementById('settingPrimaryColor')?.value.trim() || '#0b63e5';
       const sidebarNotice = document.getElementById('settingSidebarNotice')?.value.trim() || (currentMerchantBranding?.sidebarNotice || '');
@@ -5084,6 +5203,74 @@
       }
     }
 
+    function copyFieldValue(inputId, label) {
+      const el = document.getElementById(inputId);
+      const val = el ? el.value.trim() : '';
+      if (!val) {
+        showAdminToast(`No ${label || 'value'} available to copy.`, false);
+        return;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(val).then(() => {
+          showAdminToast(`${label || 'Value'} copied to clipboard!`);
+        }).catch(() => {
+          el.select();
+          document.execCommand('copy');
+          showAdminToast(`${label || 'Value'} copied to clipboard!`);
+        });
+      } else {
+        el.select();
+        document.execCommand('copy');
+        showAdminToast(`${label || 'Value'} copied to clipboard!`);
+      }
+    }
+
+    async function rotateMerchantApiKey() {
+      if (!confirm('Generate a new Secret Merchant API Key (X-Merchant-Key)? Any backend scripts using the previous key will need to be updated.')) {
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/admin/merchant-key/rotate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ merchantId: currentMerchantId || '00000000-0000-0000-0000-000000000001' })
+        });
+        const data = await res.json();
+        if (res.ok && data.merchantKey) {
+          const el = document.getElementById('settingMerchantApiKey');
+          if (el) el.value = data.merchantKey;
+          showAdminToast('New Secret Merchant API Key generated!');
+        } else {
+          showAdminToast(data.error || 'Failed to rotate Merchant API Key', false);
+        }
+      } catch (e) {
+        showAdminToast('Network error rotating Merchant API Key.', false);
+      }
+    }
+
+    async function rotateWebhookSecret() {
+      if (!confirm('Rotate the Webhook HMAC Signing Secret? Make sure to update YOUPI_WEBHOOK_SECRET on your backend server.')) {
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/admin/webhook-secret/rotate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ merchantId: currentMerchantId || '00000000-0000-0000-0000-000000000001' })
+        });
+        const data = await res.json();
+        if (res.ok && data.webhookSecret) {
+          const el = document.getElementById('settingWebhookSecret');
+          if (el) el.value = data.webhookSecret;
+          showAdminToast('New Webhook Secret generated!');
+        } else {
+          showAdminToast(data.error || 'Failed to rotate Webhook Secret', false);
+        }
+      } catch (e) {
+        showAdminToast('Network error rotating Webhook Secret.', false);
+      }
+    }
+
     // --- CANONICAL CLOUDFLARE TUNNEL ROUTING ---
     function getCalculatedDomainUrl() {
       const prefix = (document.getElementById('settingDomainPrefix')?.value || currentDomainPrefix || 'pay').trim().toLowerCase();
@@ -5104,15 +5291,15 @@
       const headerBadge = document.getElementById('headerEnvBadge');
 
       if (mode === 'production') {
-        if (btnLoc) { btnLoc.style.borderColor = 'var(--border)'; btnLoc.style.background = '#0b1120'; }
-        if (btnProd) { btnProd.style.borderColor = '#10b981'; btnProd.style.background = '#0f172a'; }
+        if (btnLoc) { btnLoc.style.borderColor = 'var(--border)'; btnLoc.style.background = 'var(--bg-box)'; }
+        if (btnProd) { btnProd.style.borderColor = '#10b981'; btnProd.style.background = 'var(--bg-box)'; }
         if (badgeLoc) badgeLoc.style.display = 'none';
         if (badgeProd) badgeProd.style.display = 'inline-block';
         if (badgeDisplay) { badgeDisplay.textContent = '🌍 PRODUCTION MODE'; badgeDisplay.className = 'badge badge-success'; }
         if (headerBadge) { headerBadge.textContent = '🌍 PRODUCTION'; headerBadge.className = 'badge badge-success'; }
       } else {
-        if (btnLoc) { btnLoc.style.borderColor = '#38bdf8'; btnLoc.style.background = '#0f172a'; }
-        if (btnProd) { btnProd.style.borderColor = 'var(--border)'; btnProd.style.background = '#0b1120'; }
+        if (btnLoc) { btnLoc.style.borderColor = '#38bdf8'; btnLoc.style.background = 'var(--bg-box)'; }
+        if (btnProd) { btnProd.style.borderColor = 'var(--border)'; btnProd.style.background = 'var(--bg-box)'; }
         if (badgeLoc) badgeLoc.style.display = 'inline-block';
         if (badgeProd) badgeProd.style.display = 'none';
         if (badgeDisplay) { badgeDisplay.textContent = '💻 LOCALHOST MODE'; badgeDisplay.className = 'badge badge-info'; }
@@ -5182,21 +5369,21 @@
       ];
 
       container.innerHTML = routes.map(r => `
-      <div style="background:#0f172a; border:1px solid #1e293b; border-radius:0.5rem; padding:1rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+      <div style="background:var(--bg-box); border:1px solid var(--border); border-radius:0.5rem; padding:1rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
         <div>
           <div style="display:flex; align-items:center; gap:0.5rem;">
-            <span style="font-weight:700; color:#f1f5f9; font-size:0.95rem;">${escapeHtml(r.serviceName)}</span>
+            <span style="font-weight:700; color:var(--text-heading); font-size:0.95rem;">${escapeHtml(r.serviceName)}</span>
             ${r.optional ? '<span class="badge badge-warning" style="font-size:0.68rem; font-weight:700;">OPTIONAL — DEMO STORE</span>' : ''}
           </div>
           <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">${escapeHtml(r.purpose)}</div>
           <div style="margin-top:0.5rem; display:flex; flex-direction:column; gap:0.3rem; font-size:0.82rem;">
             <div>
-              <span style="color:#64748b;">Public Hostname:</span>
-              <strong style="color:#38bdf8; font-family:monospace; margin-left:0.3rem;">${escapeHtml(r.hostname || 'None (configure domain above)')}</strong>
+              <span style="color:var(--text-muted);">Public Hostname:</span>
+              <strong style="color:var(--info); font-family:monospace; margin-left:0.3rem;">${escapeHtml(r.hostname || 'None (configure domain above)')}</strong>
             </div>
             <div>
-              <span style="color:#64748b;">Service URL:</span>
-              <code style="color:#f59e0b; background:#020617; padding:2px 6px; border-radius:4px; font-family:monospace; margin-left:0.3rem;">${escapeHtml(r.serviceUrl)}</code>
+              <span style="color:var(--text-muted);">Service URL:</span>
+              <code style="color:var(--warning); background:var(--bg-input); padding:2px 6px; border-radius:4px; font-family:monospace; margin-left:0.3rem;">${escapeHtml(r.serviceUrl)}</code>
             </div>
           </div>
         </div>
@@ -5329,7 +5516,7 @@
       if (status.running) {
         badge.textContent = '🟢 RUNNING';
         badge.style.background = '#065f46';
-        badge.style.color = '#34d399';
+        badge.style.color = 'var(--success)';
         if (btnStart) btnStart.style.display = 'none';
         if (btnStop) btnStop.style.display = 'inline-flex';
         const upSec = Math.floor((status.uptimeMs || 0) / 1000);
@@ -5337,8 +5524,8 @@
         if (pidInfo) pidInfo.textContent = `PID: ${status.pid} | Uptime: ${upStr}`;
       } else {
         badge.textContent = '⚪ STOPPED';
-        badge.style.background = '#334155';
-        badge.style.color = '#94a3b8';
+        badge.style.background = 'var(--bg-elevated)';
+        badge.style.color = 'var(--text-muted)';
         if (btnStart) btnStart.style.display = 'inline-flex';
         if (btnStop) btnStop.style.display = 'none';
         if (pidInfo) pidInfo.textContent = `PID: - | Uptime: -`;
@@ -5435,7 +5622,7 @@
           return `
         <tr>
           <td><strong>${escapeHtml(name)}</strong></td>
-          <td><code style="font-size:0.75rem; color:#38bdf8;">${escapeHtml(id)}</code></td>
+          <td><code style="font-size:0.75rem; color:var(--info);">${escapeHtml(id)}</code></td>
           <td><span style="font-size:0.75rem; color:var(--text-muted);">${timeStr}</span></td>
           <td>
             <button class="btn btn-danger" style="padding:0.25rem 0.6rem; font-size:0.72rem;" onclick="unpairSmsDevice(${jsArg(id)})">Unpair</button>
@@ -5469,7 +5656,7 @@
         if (tok1 && data.enrollmentToken) tok1.textContent = data.enrollmentToken;
         if (tok2 && data.enrollmentToken) tok2.textContent = data.enrollmentToken;
       } catch (e) {
-        box.innerHTML = '<span style="font-size:0.75rem; color:#ef4444;">Failed to load QR</span>';
+        box.innerHTML = '<span style="font-size:0.75rem; color:var(--danger);">Failed to load QR</span>';
       }
     }
 
@@ -5509,15 +5696,15 @@
         const data = await res.json();
         if (resBox) {
           if (res.ok) {
-            resBox.style.color = '#34d399';
+            resBox.style.color = 'var(--success)';
             resBox.textContent = `✅ Parsed successfully! Amount: ₹${data.event?.amountPaise ? (data.event.amountPaise / 100) : 'N/A'}, Ref: ${data.event?.refId || 'N/A'}`;
           } else {
-            resBox.style.color = '#f87171';
+            resBox.style.color = 'var(--danger)';
             resBox.textContent = `⚠️ Error: ${data.error || 'Failed to parse'}`;
           }
         }
       } catch (e) {
-        if (resBox) { resBox.style.color = '#f87171'; resBox.textContent = 'Network error.'; }
+        if (resBox) { resBox.style.color = 'var(--danger)'; resBox.textContent = 'Network error.'; }
       }
     }
 
@@ -5681,7 +5868,7 @@
           if (heroDot) heroDot.style.background = '#10b981';
           if (heroTitle) heroTitle.textContent = 'Google Account Connected & Active';
           if (heroDesc) {
-            heroDesc.innerHTML = `✅ Authenticated as <strong style="color:#38bdf8; font-family:monospace;">${escapeHtml(connectedEmail || 'Authorized Account')}</strong>. Zero-delay mailbox polling active for incoming UPI payment notifications.`;
+            heroDesc.innerHTML = `✅ Authenticated as <strong style="color:var(--info); font-family:monospace;">${escapeHtml(connectedEmail || 'Authorized Account')}</strong>. Zero-delay mailbox polling active for incoming UPI payment notifications.`;
           }
           if (authBtnLabel) authBtnLabel.textContent = '🔄 Re-authorize Account';
           if (disconnectBtn) disconnectBtn.style.display = 'inline-flex';
@@ -5749,9 +5936,9 @@
 
       if (box) {
         box.style.display = 'block';
-        box.style.background = '#0f172a';
+        box.style.background = 'var(--bg-box)';
         box.style.border = '1px solid #1e293b';
-        box.style.color = '#38bdf8';
+        box.style.color = 'var(--info)';
         box.textContent = '⏳ Testing live Google API connection & mailbox indexing...';
       }
 
@@ -5766,22 +5953,22 @@
           if (res.ok && data.success) {
             box.style.background = 'rgba(16, 185, 129, 0.1)';
             box.style.border = '1px solid #059669';
-            box.style.color = '#34d399';
+            box.style.color = 'var(--success)';
             box.innerHTML = `
-            <div style="font-weight:700; margin-bottom:0.35rem; color:#34d399;">✅ GOOGLE API VERIFICATION SUCCESSFUL</div>
+            <div style="font-weight:700; margin-bottom:0.35rem; color:var(--success);">✅ GOOGLE API VERIFICATION SUCCESSFUL</div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.25rem; font-size:0.78rem; font-family:monospace;">
-              <div><strong>AUTHENTICATED:</strong> <span style="color:#10b981;">YES</span></div>
+              <div><strong>AUTHENTICATED:</strong> <span style="color:var(--success);">YES</span></div>
               <div><strong>ACCOUNT:</strong> ${escapeHtml(data.emailAddress || 'Authorized')}</div>
               <div><strong>LAST POLL:</strong> ${new Date(data.lastPoll || Date.now()).toLocaleTimeString()}</div>
               <div><strong>MAILBOX INDEX:</strong> ${escapeHtml(data.lastMessageFetched || 'Mailbox active')}</div>
-              <div style="grid-column: span 2;"><strong>STATUS:</strong> <span style="color:#10b981;">100% OPERATIONAL • INCOMING UPI NOTIFICATIONS MONITORED</span></div>
+              <div style="grid-column: span 2;"><strong>STATUS:</strong> <span style="color:var(--success);">100% OPERATIONAL • INCOMING UPI NOTIFICATIONS MONITORED</span></div>
             </div>
           `;
             fetchGmailCredentials();
           } else {
             box.style.background = 'rgba(239, 68, 68, 0.1)';
             box.style.border = '1px solid #dc2626';
-            box.style.color = '#f87171';
+            box.style.color = 'var(--danger)';
             box.innerHTML = `⚠️ <strong>Connection Test Notice:</strong> ${escapeHtml(data.error || 'Token expired or invalid. Please click Connect with Google to re-authorize.')}`;
           }
         }
@@ -5789,7 +5976,7 @@
         if (box) {
           box.style.background = 'rgba(239, 68, 68, 0.1)';
           box.style.border = '1px solid #dc2626';
-          box.style.color = '#f87171';
+          box.style.color = 'var(--danger)';
           box.textContent = 'Network error testing Gmail connection: ' + e.message;
         }
       }
@@ -5817,15 +6004,15 @@
 
         if (data.status === 'CONNECTED') {
           if (badge) { badge.className = 'badge badge-success'; badge.innerText = 'CONNECTED'; }
-          if (dot) dot.style.color = '#10b981';
+          if (dot) dot.style.color = 'var(--success)';
           if (title) title.innerText = 'WhatsApp Connected & Active';
-          if (phoneDisplay) phoneDisplay.innerHTML = `Linked Phone: <strong style="color:#34d399;">${data.phoneNumber || 'Linked Device'}</strong>`;
+          if (phoneDisplay) phoneDisplay.innerHTML = `Linked Phone: <strong style="color:var(--success);">${data.phoneNumber || 'Linked Device'}</strong>`;
           if (qrBox) qrBox.style.display = 'none';
           if (btnDisconnect) btnDisconnect.style.display = 'inline-block';
           if (btnConnect) btnConnect.innerText = '🔄 Re-Pair Device';
         } else if (data.status === 'QR_READY') {
           if (badge) { badge.className = 'badge badge-warning'; badge.innerText = 'QR READY'; }
-          if (dot) dot.style.color = '#fbbf24';
+          if (dot) dot.style.color = 'var(--warning)';
           if (title) title.innerText = 'Scan QR Code with WhatsApp';
           if (phoneDisplay) phoneDisplay.innerText = 'Awaiting pairing scan from merchant WhatsApp handset';
           if (qrBox) qrBox.style.display = 'inline-block';
@@ -5852,7 +6039,7 @@
           }
         } else if (data.status === 'CONNECTING') {
           if (badge) { badge.className = 'badge badge-info'; badge.innerText = 'CONNECTING'; }
-          if (dot) dot.style.color = '#38bdf8';
+          if (dot) dot.style.color = 'var(--info)';
           if (title) title.innerText = 'Connecting to WhatsApp...';
           if (phoneDisplay) phoneDisplay.innerText = 'Establishing secure WhatsApp pairing session...';
           if (qrBox) qrBox.style.display = 'inline-block';
@@ -5865,7 +6052,7 @@
           if (btnConnect) btnConnect.innerText = '⏳ Connecting...';
         } else {
           if (badge) { badge.className = 'badge badge-danger'; badge.innerText = 'DISCONNECTED'; }
-          if (dot) dot.style.color = '#ef4444';
+          if (dot) dot.style.color = 'var(--danger)';
           if (title) title.innerText = 'Session Disconnected';
           if (phoneDisplay) phoneDisplay.innerText = 'No WhatsApp session active';
           if (qrBox) qrBox.style.display = 'inline-block';
@@ -6009,7 +6196,7 @@
               <div style="display:flex; align-items:center; gap:6px;">
                 <span class="cashier-modal-badge ${badgeClass}">${methodLabel}</span>
                 <strong style="color:#ffffff; font-size:12px; font-family:monospace;">${escapeHtmlValue(orderIdStr)}</strong>
-                <span style="color:#f59e0b; font-size:12px; font-weight:700;">${escapeHtmlValue(amountStr)}</span>
+                <span style="color:var(--warning); font-size:12px; font-weight:700;">${escapeHtmlValue(amountStr)}</span>
               </div>
               <div style="display:flex; align-items:center; gap:4px;">
                 <button type="button" class="cashier-btn-minimize" onclick="toggleMinimizeCard(${jsArg(p.id)})">▲</button>
@@ -6037,7 +6224,7 @@
               </div>
               <div style="text-align:right;">
                 <div style="font-size:11px; color:var(--text-muted);">${escapeHtmlValue(customerText)}</div>
-                <div style="font-size:11px; color:#64748b; margin-top:2px;">Requested at counter</div>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Requested at counter</div>
               </div>
             </div>
             <div class="cashier-modal-actions">
@@ -6294,7 +6481,7 @@
         if (banner) banner.style.display = 'block';
         if (section) section.style.display = 'block';
         if (banText) {
-          banText.innerHTML = '🛡️ Automatic Ban System: <strong style="color:#ef4444;">DISABLED (Test Mode Active)</strong>';
+          banText.innerHTML = '🛡️ Automatic Ban System: <strong style="color:var(--danger);">DISABLED (Test Mode Active)</strong>';
         }
 
         const updateTimer = () => {
@@ -6327,12 +6514,12 @@
         if (banner) banner.style.display = 'none';
         if (section) section.style.display = 'none';
         if (badge) {
-          badge.style.background = '#334155';
-          badge.style.color = '#94a3b8';
+          badge.style.background = 'var(--bg-elevated)';
+          badge.style.color = 'var(--text-muted)';
           badge.textContent = '[ OFF ] Test Mode';
         }
         if (banText) {
-          banText.innerHTML = '🛡️ Automatic Ban System: <strong style="color:#22c55e;">ENABLED (Normal)</strong>';
+          banText.innerHTML = '🛡️ Automatic Ban System: <strong style="color:var(--success);">ENABLED (Normal)</strong>';
         }
       }
     }
@@ -6519,7 +6706,7 @@
           <div style="background:${bg}; border:1px solid #334155; border-radius:6px; padding:0.6rem 0.85rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
             <div>
               <strong style="color:#ffffff; font-size:0.83rem;">${def.title}</strong>
-              ${detailsText ? `<div style="font-size:0.75rem; color:#cbd5e1; margin-top:0.2rem; font-family:monospace;">${escapeHtml(detailsText)}</div>` : ''}
+              ${detailsText ? `<div style="font-size:0.75rem; color:var(--text); margin-top:0.2rem; font-family:monospace;">${escapeHtml(detailsText)}</div>` : ''}
             </div>
             <span style="font-weight:700; font-size:0.75rem; color:${statusColor};">${statusBadge}</span>
           </div>
@@ -6537,7 +6724,7 @@
           if (!tbody) return;
 
           if (!data.logs || data.logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="padding:1rem; text-align:center; color:#64748b;">No test records recorded yet.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="padding:1rem; text-align:center; color:var(--text-muted);">No test records recorded yet.</td></tr>';
             return;
           }
 
@@ -6553,12 +6740,12 @@
             else if (outcome === 'SUSPICIOUS') outcomeColor = '#fbbf24';
 
             return `
-            <tr style="border-bottom:1px solid #1e293b;">
-              <td style="padding:0.4rem; color:#94a3b8;">${time}</td>
-              <td style="padding:0.4rem; font-family:monospace; color:#f8fafc;">${escapeHtml(actionText)}</td>
-              <td style="padding:0.4rem; color:#38bdf8;">${escapeHtml(d.source || '-')}</td>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:0.4rem; color:var(--text-muted);">${time}</td>
+              <td style="padding:0.4rem; font-family:monospace; color:var(--text-heading);">${escapeHtml(actionText)}</td>
+              <td style="padding:0.4rem; color:var(--info);">${escapeHtml(d.source || '-')}</td>
               <td style="padding:0.4rem; font-weight:700; color:${outcomeColor};">${escapeHtml(outcome)}</td>
-              <td style="padding:0.4rem; color:#cbd5e1; font-family:monospace; font-size:0.75rem;">${escapeHtml(rawSnippet)}</td>
+              <td style="padding:0.4rem; color:var(--text); font-family:monospace; font-size:0.75rem;">${escapeHtml(rawSnippet)}</td>
             </tr>
           `;
           }).join('');
@@ -6616,12 +6803,12 @@
           const btnEnable = document.getElementById('simBtnEnableTestMode');
           if (data.enabled) {
             if (statusEl) {
-              statusEl.innerHTML = `<span style="color:#22c55e;">● ACTIVE</span> (${Math.floor(data.remainingSeconds / 60)}m ${data.remainingSeconds % 60}s)`;
+              statusEl.innerHTML = `<span style="color:var(--success);">● ACTIVE</span> (${Math.floor(data.remainingSeconds / 60)}m ${data.remainingSeconds % 60}s)`;
             }
             if (btnEnable) btnEnable.style.display = 'none';
           } else {
             if (statusEl) {
-              statusEl.innerHTML = `<span style="color:#ef4444;">● OFF / EXPIRED</span>`;
+              statusEl.innerHTML = `<span style="color:var(--danger);">● OFF / EXPIRED</span>`;
             }
             if (btnEnable) {
               btnEnable.style.display = 'inline-block';
@@ -6717,7 +6904,7 @@
       if (!simSelectedCustomer) return;
       const container = document.getElementById('simSessionsList');
       if (container) {
-        container.innerHTML = '<div style="padding:1.5rem; text-align:center; color:#94a3b8;">Loading payment sessions...</div>';
+        container.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted);">Loading payment sessions...</div>';
       }
 
       // Hide session bar and terminal notice
@@ -6737,7 +6924,7 @@
 
         if (sessions.length === 0) {
           container.innerHTML = `
-          <div style="padding:1.5rem; text-align:center; color:#64748b; font-size:0.84rem;">
+          <div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.84rem;">
             No payment sessions found for ${escapeHtml(simSelectedCustomer.name)}.<br/>
             <span style="font-size:0.75rem; color:#475569;">Initiate a payment via checkout or Coin Store to test.</span>
           </div>
@@ -6751,23 +6938,25 @@
           let badgeBg = '#1e293b';
           if (s.status === 'ACTIVE') { badgeColor = '#0f172a'; badgeBg = '#22c55e'; }
           else if (s.status === 'PROCESSING') { badgeColor = '#0f172a'; badgeBg = '#fbbf24'; }
-          else if (s.status === 'SUCCESS') { badgeColor = '#ffffff'; badgeBg = '#059669'; }
+          else if (s.status === 'RECONCILED' || s.status === 'SUCCESS') { badgeColor = '#ffffff'; badgeBg = '#059669'; }
+          else if (s.status === 'OBSERVED_SUCCESS') { badgeColor = '#78350f'; badgeBg = '#fcd34d'; }
+          else if (s.status === 'MANUAL_REVIEW') { badgeColor = '#ffffff'; badgeBg = '#b45309'; }
           else if (s.status === 'CANCELLED' || s.status === 'EXPIRED' || s.status === 'FAILED') { badgeColor = '#ffffff'; badgeBg = '#ef4444'; }
 
           return `
-          <div class="sim-session-row" onclick="simPickSession(${jsArg(s.id)})" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0.65rem; border-radius:6px; margin-bottom:0.35rem; background:#0f172a; border:1px solid #1e293b; transition:all 0.15s ease;" id="simSessItem_${escapeAttribute(s.id)}">
+          <div class="sim-session-row" onclick="simPickSession(${jsArg(s.id)})" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0.65rem; border-radius:6px; margin-bottom:0.35rem; background:var(--bg-box); border:1px solid var(--border); transition:all 0.15s ease;" id="simSessItem_${escapeAttribute(s.id)}">
             <div>
               <div style="display:flex; align-items:center; gap:0.4rem;">
                 <input type="radio" name="simSessionRadio" id="radio_${s.id}" style="accent-color:var(--primary); cursor:pointer;" />
-                <strong style="color:#f8fafc; font-size:0.84rem; font-family:monospace;">${escapeHtml(s.id.slice(0, 14))}...</strong>
-                <span style="color:#94a3b8; font-size:0.78rem;">#${escapeHtml(s.orderId)}</span>
+                <strong style="color:var(--text-heading); font-size:0.84rem; font-family:monospace;">${escapeHtml(s.id.slice(0, 14))}...</strong>
+                <span style="color:var(--text-muted); font-size:0.78rem;">#${escapeHtml(s.orderId)}</span>
               </div>
-              <div style="font-size:0.72rem; color:#64748b; margin-left:1.4rem;">
+              <div style="font-size:0.72rem; color:var(--text-muted); margin-left:1.4rem;">
                 Device: <code>${escapeHtml(s.deviceId ? s.deviceId.slice(0, 16) : 'None')}</code>
               </div>
             </div>
             <div style="text-align:right;">
-              <strong style="color:#38bdf8; font-size:0.88rem;">₹${escapeHtml(s.amount)}</strong>
+              <strong style="color:var(--info); font-size:0.88rem;">₹${escapeHtml(s.amount)}</strong>
               <div style="margin-top:0.15rem;">
                 <span class="badge" style="font-size:0.68rem; padding:0.15rem 0.45rem; background:${badgeBg}; color:${badgeColor}; font-weight:700;">
                   ${escapeHtml(s.status)}
@@ -6787,7 +6976,7 @@
           simPickSession(firstActive.id);
         }
       } catch (e) {
-        if (container) container.innerHTML = `<div style="padding:1rem; color:#ef4444; font-size:0.8rem;">Error: ${escapeHtml(e.message)}</div>`;
+        if (container) container.innerHTML = `<div style="padding:1rem; color:var(--danger); font-size:0.8rem;">Error: ${escapeHtml(e.message)}</div>`;
       }
     }
 
@@ -6802,7 +6991,7 @@
       // Highlight row
       document.querySelectorAll('.sim-session-row').forEach(r => {
         r.style.borderColor = '#1e293b';
-        r.style.background = '#0f172a';
+        r.style.background = 'var(--bg-box)';
       });
       const item = document.getElementById(`simSessItem_${sessionId}`);
       if (item) {
@@ -6834,7 +7023,7 @@
       const btnSms = document.getElementById('simBtnPushSms');
       const btnGmail = document.getElementById('simBtnPushGmail');
 
-      const isTerminal = ['SUCCESS', 'FAILED', 'EXPIRED', 'CANCELLED'].includes(sess.status);
+      const isTerminal = ['SUCCESS', 'OBSERVED_SUCCESS', 'RECONCILED', 'MANUAL_REVIEW', 'FAILED', 'EXPIRED', 'CANCELLED'].includes(sess.status);
       if (isTerminal) {
         if (notice) notice.style.display = 'block';
         if (btnSms) { btnSms.disabled = true; btnSms.style.opacity = '0.5'; btnSms.style.cursor = 'not-allowed'; }
@@ -7042,7 +7231,7 @@
                 <strong style="color:#ffffff; font-size:0.86rem;">${escapeHtml(def.name)}</strong>
                 ${reasonBadge}
               </div>
-              <div style="font-size:0.75rem; color:#94a3b8; margin-left:1.85rem; margin-top:0.15rem;">
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-left:1.85rem; margin-top:0.15rem;">
                 ${escapeHtml(detailText)}
               </div>
             </div>
@@ -7067,7 +7256,7 @@
           if (!tbody) return;
 
           if (!data.history || data.history.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="padding:1.5rem; text-align:center; color:#64748b;">No simulations recorded yet.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="padding:1.5rem; text-align:center; color:var(--text-muted);">No simulations recorded yet.</td></tr>';
             return;
           }
 
@@ -7079,14 +7268,14 @@
             else if (item.result === 'SUSPICIOUS') resColor = '#f59e0b';
 
             return `
-            <tr style="border-bottom:1px solid #1e293b;">
-              <td style="padding:0.6rem 0.75rem; color:#94a3b8; font-size:0.78rem;">${time}</td>
-              <td style="padding:0.6rem 0.75rem; color:#38bdf8; font-weight:700;">${escapeHtml(item.source)}</td>
-              <td style="padding:0.6rem 0.75rem; color:#f8fafc; font-family:monospace; font-size:0.78rem;">${escapeHtml(item.sender || '-')}</td>
-              <td style="padding:0.6rem 0.75rem; color:#e2e8f0; font-family:monospace; font-size:0.75rem;">${escapeHtml(item.sessionId ? item.sessionId.slice(0, 10) + '...' : '-')}</td>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:0.6rem 0.75rem; color:var(--text-muted); font-size:0.78rem;">${time}</td>
+              <td style="padding:0.6rem 0.75rem; color:var(--info); font-weight:700;">${escapeHtml(item.source)}</td>
+              <td style="padding:0.6rem 0.75rem; color:var(--text-heading); font-family:monospace; font-size:0.78rem;">${escapeHtml(item.sender || '-')}</td>
+              <td style="padding:0.6rem 0.75rem; color:var(--text-heading); font-family:monospace; font-size:0.75rem;">${escapeHtml(item.sessionId ? item.sessionId.slice(0, 10) + '...' : '-')}</td>
               <td style="padding:0.6rem 0.75rem; font-weight:800; color:${resColor};">${escapeHtml(item.result)}</td>
-              <td style="padding:0.6rem 0.75rem; font-family:monospace; color:#64748b; font-size:0.72rem;">${escapeHtml(item.messageId || '-')}</td>
-              <td style="padding:0.6rem 0.75rem; color:#f87171; font-size:0.75rem;">${escapeHtml(item.failingReason || '-')}</td>
+              <td style="padding:0.6rem 0.75rem; font-family:monospace; color:var(--text-muted); font-size:0.72rem;">${escapeHtml(item.messageId || '-')}</td>
+              <td style="padding:0.6rem 0.75rem; color:var(--danger); font-size:0.75rem;">${escapeHtml(item.failingReason || '-')}</td>
             </tr>
           `;
           }).join('');
@@ -7119,7 +7308,7 @@
       } catch (e) {
         console.warn('fetchBannedUsers error:', e);
         if (tbody) {
-          tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#f87171; padding:1.5rem;">⚠️ Failed to load banned users: ${escapeHtml(e.message)}</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--danger); padding:1.5rem;">⚠️ Failed to load banned users: ${escapeHtml(e.message)}</td></tr>`;
         }
       }
     }
@@ -7140,15 +7329,15 @@
           : `<span class="badge badge-danger" style="font-size:0.75rem;">${escapeHtml(u.banReason || 'FRAUDULENT_PAYMENT_INJECTION')}</span>`;
 
         return `
-        <tr style="border-bottom:1px solid #1e293b;">
-          <td><strong style="color:#ffffff;">${escapeHtml(u.name || 'Anonymous')}</strong><div style="font-size:0.72rem; color:#64748b; font-family:monospace;">${u.id}</div></td>
-          <td style="color:#cbd5e1; font-size:0.83rem;">${escapeHtml(u.email || '-')}</td>
-          <td style="color:#38bdf8; font-family:monospace; font-size:0.83rem;">${escapeHtml(u.phone || u.mobileNumber || '-')}</td>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td><strong style="color:#ffffff;">${escapeHtml(u.name || 'Anonymous')}</strong><div style="font-size:0.72rem; color:var(--text-muted); font-family:monospace;">${u.id}</div></td>
+          <td style="color:var(--text); font-size:0.83rem;">${escapeHtml(u.email || '-')}</td>
+          <td style="color:var(--info); font-family:monospace; font-size:0.83rem;">${escapeHtml(u.phone || u.mobileNumber || '-')}</td>
           <td><span class="badge badge-danger" style="font-weight:800; font-size:0.75rem; letter-spacing:0.04em;">BANNED</span></td>
-          <td style="color:#94a3b8; font-size:0.8rem;">${bannedTime}</td>
+          <td style="color:var(--text-muted); font-size:0.8rem;">${bannedTime}</td>
           <td>${reasonBadge}</td>
-          <td><code style="font-size:0.75rem; color:#94a3b8;">${u.lastSessionId ? u.lastSessionId.substring(0, 14) + '...' : '-'}</code></td>
-          <td style="color:#94a3b8; font-size:0.78rem;">${escapeHtml(u.lastDevice || 'android-gateway')}</td>
+          <td><code style="font-size:0.75rem; color:var(--text-muted);">${u.lastSessionId ? u.lastSessionId.substring(0, 14) + '...' : '-'}</code></td>
+          <td style="color:var(--text-muted); font-size:0.78rem;">${escapeHtml(u.lastDevice || 'android-gateway')}</td>
           <td><span class="badge badge-info" style="font-size:0.7rem;">${escapeHtml(u.source || 'SMS')}</span></td>
           <td style="text-align:right;">
             <div style="display:inline-flex; gap:0.4rem;">
@@ -7183,7 +7372,7 @@
       const modalBody = document.getElementById('banDetailsModalBody');
       if (!modal || !modalBody) return;
 
-      modalBody.innerHTML = '<div style="text-align:center; padding:2rem; color:#94a3b8;">Loading comprehensive forensic evidence...</div>';
+      modalBody.innerHTML = '<div style="text-align:center; padding:2rem; color:var(--text-muted);">Loading comprehensive forensic evidence...</div>';
       modal.hidden = false;
 
       try {
@@ -7201,29 +7390,29 @@
         modalBody.innerHTML = `
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
           <!-- 1. Customer Profile -->
-          <div style="background:#020617; border:1px solid #1e293b; border-radius:8px; padding:1rem;">
-            <div style="font-weight:700; color:#38bdf8; font-size:0.85rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">👤 Customer Profile</div>
+          <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:8px; padding:1rem;">
+            <div style="font-weight:700; color:var(--info); font-size:0.85rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">👤 Customer Profile</div>
             <div style="display:grid; grid-template-columns:auto 1fr; gap:0.4rem 0.8rem; font-size:0.82rem;">
-              <span style="color:#64748b;">Name:</span><strong style="color:#ffffff;">${escapeHtml(c.name || '-')}</strong>
-              <span style="color:#64748b;">Phone:</span><span style="color:#38bdf8; font-family:monospace;">${escapeHtml(c.phone || '-')}</span>
-              <span style="color:#64748b;">Email:</span><span style="color:#cbd5e1;">${escapeHtml(c.email || '-')}</span>
-              <span style="color:#64748b;">Customer ID:</span><code style="color:#94a3b8; font-size:0.72rem;">${c.id || '-'}</code>
-              <span style="color:#64748b;">Created At:</span><span style="color:#cbd5e1;">${c.createdAt ? new Date(c.createdAt).toLocaleString() : '-'}</span>
-              <span style="color:#64748b;">Total Orders:</span><strong style="color:#ffffff;">${c.totalOrders || 0}</strong>
-              <span style="color:#64748b;">Total Spent:</span><strong style="color:#34d399;">₹${c.totalSpentRupees || '0.00'}</strong>
+              <span style="color:var(--text-muted);">Name:</span><strong style="color:#ffffff;">${escapeHtml(c.name || '-')}</strong>
+              <span style="color:var(--text-muted);">Phone:</span><span style="color:var(--info); font-family:monospace;">${escapeHtml(c.phone || '-')}</span>
+              <span style="color:var(--text-muted);">Email:</span><span style="color:var(--text);">${escapeHtml(c.email || '-')}</span>
+              <span style="color:var(--text-muted);">Customer ID:</span><code style="color:var(--text-muted); font-size:0.72rem;">${c.id || '-'}</code>
+              <span style="color:var(--text-muted);">Created At:</span><span style="color:var(--text);">${c.createdAt ? new Date(c.createdAt).toLocaleString() : '-'}</span>
+              <span style="color:var(--text-muted);">Total Orders:</span><strong style="color:#ffffff;">${c.totalOrders || 0}</strong>
+              <span style="color:var(--text-muted);">Total Spent:</span><strong style="color:var(--success);">₹${c.totalSpentRupees || '0.00'}</strong>
             </div>
           </div>
 
           <!-- 2. Ban & Trigger Details -->
-          <div style="background:#020617; border:1px solid #1e293b; border-radius:8px; padding:1rem;">
-            <div style="font-weight:700; color:#f87171; font-size:0.85rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">⚖️ Enforcement Attributes</div>
+          <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:8px; padding:1rem;">
+            <div style="font-weight:700; color:var(--danger); font-size:0.85rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">⚖️ Enforcement Attributes</div>
             <div style="display:grid; grid-template-columns:auto 1fr; gap:0.4rem 0.8rem; font-size:0.82rem;">
-              <span style="color:#64748b;">Ban Type:</span><span class="badge ${b.banType === 'AUTOMATIC' ? 'badge-danger' : 'badge-warning'}">${escapeHtml(b.banType)}</span>
-              <span style="color:#64748b;">Trigger Event:</span><strong style="color:#f87171;">${escapeHtml(b.triggerEvent)}</strong>
-              <span style="color:#64748b;">Timestamp:</span><span style="color:#cbd5e1;">${b.triggerTimestamp ? new Date(b.triggerTimestamp).toLocaleString() : '-'}</span>
-              <span style="color:#64748b;">Session ID:</span><code style="color:#94a3b8; font-size:0.72rem;">${b.paymentSessionId || '-'}</code>
-              <span style="color:#64748b;">Order ID:</span><strong style="color:#ffffff;">#${escapeHtml(b.orderId || '-')}</strong>
-              <span style="color:#64748b;">Session Amount:</span><strong style="color:#38bdf8;">₹${b.sessionAmountRupees || '-'}</strong>
+              <span style="color:var(--text-muted);">Ban Type:</span><span class="badge ${b.banType === 'AUTOMATIC' ? 'badge-danger' : 'badge-warning'}">${escapeHtml(b.banType)}</span>
+              <span style="color:var(--text-muted);">Trigger Event:</span><strong style="color:var(--danger);">${escapeHtml(b.triggerEvent)}</strong>
+              <span style="color:var(--text-muted);">Timestamp:</span><span style="color:var(--text);">${b.triggerTimestamp ? new Date(b.triggerTimestamp).toLocaleString() : '-'}</span>
+              <span style="color:var(--text-muted);">Session ID:</span><code style="color:var(--text-muted); font-size:0.72rem;">${b.paymentSessionId || '-'}</code>
+              <span style="color:var(--text-muted);">Order ID:</span><strong style="color:#ffffff;">#${escapeHtml(b.orderId || '-')}</strong>
+              <span style="color:var(--text-muted);">Session Amount:</span><strong style="color:var(--info);">₹${b.sessionAmountRupees || '-'}</strong>
             </div>
           </div>
         </div>
@@ -7231,13 +7420,13 @@
         <!-- 3. VERBATIM RAW EVIDENCE (PRESERVED WORD-FOR-WORD) -->
         <div style="margin-bottom:1.25rem;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-            <div style="font-weight:700; color:#f87171; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em;">
+            <div style="font-weight:700; color:var(--danger); font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em;">
               📜 Verbatim Raw Message Evidence (Exact Word-For-Word Payload)
             </div>
             <span class="badge badge-danger" style="font-size:0.68rem;">UNTOUCHED RAW STRING</span>
           </div>
-          <pre style="background:#020617; border:1px solid #dc2626; color:#fca5a5; padding:1.1rem; border-radius:8px; font-family:Consolas, Monaco, monospace; white-space:pre-wrap; word-break:break-all; font-size:0.85rem; line-height:1.55; margin:0; box-shadow:inset 0 2px 4px rgba(0,0,0,0.5);"><code>${escapeHtml(rawEvidence)}</code></pre>
-          <div style="font-size:0.74rem; color:#94a3b8; margin-top:0.35rem; font-style:italic;">
+          <pre style="background:var(--bg-input); border:1px solid #dc2626; color:var(--danger); padding:1.1rem; border-radius:8px; font-family:Consolas, Monaco, monospace; white-space:pre-wrap; word-break:break-all; font-size:0.85rem; line-height:1.55; margin:0; box-shadow:inset 0 2px 4px rgba(0,0,0,0.5);"><code>${escapeHtml(rawEvidence)}</code></pre>
+          <div style="font-size:0.74rem; color:var(--text-muted); margin-top:0.35rem; font-style:italic;">
             * Stored verbatim without parsing truncation or database mutation. Exact fake message sent by the customer.
           </div>
         </div>
@@ -7245,42 +7434,42 @@
         <!-- 4. Observation Metadata & Discrepancy Analysis -->
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
           <!-- Metadata -->
-          <div style="background:#020617; border:1px solid #1e293b; border-radius:8px; padding:1rem;">
-            <div style="font-weight:700; color:#94a3b8; font-size:0.85rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">📡 Observation Metadata</div>
+          <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:8px; padding:1rem;">
+            <div style="font-weight:700; color:var(--text-muted); font-size:0.85rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">📡 Observation Metadata</div>
             <div style="display:grid; grid-template-columns:auto 1fr; gap:0.4rem 0.8rem; font-size:0.82rem;">
-              <span style="color:#64748b;">Source Channel:</span><strong style="color:#ffffff;">${escapeHtml(meta.source || 'SMS')}</strong>
-              <span style="color:#64748b;">Sender Identity:</span><code style="color:#38bdf8;">${escapeHtml(meta.sender || '-')}</code>
-              <span style="color:#64748b;">Receiver Identity:</span><span style="color:#cbd5e1;">${escapeHtml(meta.receiver || '-')}</span>
-              <span style="color:#64748b;">Observer Device ID:</span><code style="color:#cbd5e1; font-size:0.72rem;">${escapeHtml(meta.deviceId || '-')}</code>
+              <span style="color:var(--text-muted);">Source Channel:</span><strong style="color:#ffffff;">${escapeHtml(meta.source || 'SMS')}</strong>
+              <span style="color:var(--text-muted);">Sender Identity:</span><code style="color:var(--info);">${escapeHtml(meta.sender || '-')}</code>
+              <span style="color:var(--text-muted);">Receiver Identity:</span><span style="color:var(--text);">${escapeHtml(meta.receiver || '-')}</span>
+              <span style="color:var(--text-muted);">Observer Device ID:</span><code style="color:var(--text); font-size:0.72rem;">${escapeHtml(meta.deviceId || '-')}</code>
             </div>
           </div>
 
           <!-- Discrepancy Analysis -->
-          <div style="background:#020617; border:1px solid #1e293b; border-radius:8px; padding:1rem;">
-            <div style="font-weight:700; color:#fbbf24; font-size:0.85rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">🔍 Discrepancy Forensic Audit</div>
+          <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:8px; padding:1rem;">
+            <div style="font-weight:700; color:var(--warning); font-size:0.85rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">🔍 Discrepancy Forensic Audit</div>
             <div style="display:grid; grid-template-columns:auto 1fr; gap:0.35rem 0.8rem; font-size:0.8rem;">
-              <span style="color:#64748b;">Customer Phone:</span><span style="color:#38bdf8; font-family:monospace;">${escapeHtml(disc.customerPhone || '-')}</span>
-              <span style="color:#64748b;">Sender Number:</span><span style="color:#f87171; font-family:monospace;">${escapeHtml(disc.observationSender || '-')}</span>
-              <span style="color:#64748b;">Legitimate Bank:</span><strong style="color:#f87171;">${escapeHtml(disc.registeredBankHeader || 'NO')}</strong>
-              <span style="color:#64748b;">Session Amount:</span><span style="color:#ffffff;">${escapeHtml(disc.sessionAmount || '-')}</span>
-              <span style="color:#64748b;">Fraud Engine Verdict:</span><strong style="color:#f87171;">${escapeHtml(disc.result || 'FRAUDULENT_PAYMENT_INJECTION')}</strong>
+              <span style="color:var(--text-muted);">Customer Phone:</span><span style="color:var(--info); font-family:monospace;">${escapeHtml(disc.customerPhone || '-')}</span>
+              <span style="color:var(--text-muted);">Sender Number:</span><span style="color:var(--danger); font-family:monospace;">${escapeHtml(disc.observationSender || '-')}</span>
+              <span style="color:var(--text-muted);">Legitimate Bank:</span><strong style="color:var(--danger);">${escapeHtml(disc.registeredBankHeader || 'NO')}</strong>
+              <span style="color:var(--text-muted);">Session Amount:</span><span style="color:#ffffff;">${escapeHtml(disc.sessionAmount || '-')}</span>
+              <span style="color:var(--text-muted);">Fraud Engine Verdict:</span><strong style="color:var(--danger);">${escapeHtml(disc.result || 'FRAUDULENT_PAYMENT_INJECTION')}</strong>
             </div>
           </div>
         </div>
 
         <!-- 5. Forensic Timeline -->
-        <div style="background:#020617; border:1px solid #1e293b; border-radius:8px; padding:1rem;">
-          <div style="font-weight:700; color:#cbd5e1; font-size:0.85rem; margin-bottom:0.6rem; text-transform:uppercase; letter-spacing:0.05em;">⏱️ Immutable Incident Timeline</div>
+        <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:8px; padding:1rem;">
+          <div style="font-weight:700; color:var(--text); font-size:0.85rem; margin-bottom:0.6rem; text-transform:uppercase; letter-spacing:0.05em;">⏱️ Immutable Incident Timeline</div>
           <div style="display:flex; flex-direction:column; gap:0.4rem; font-size:0.8rem;">
-            <div style="display:flex; gap:0.75rem;"><span style="color:#64748b; width:170px;">1. Payment Session Created:</span><span style="color:#ffffff;">${timeline.sessionCreated ? new Date(timeline.sessionCreated).toLocaleString() : '-'}</span></div>
-            <div style="display:flex; gap:0.75rem;"><span style="color:#64748b; width:170px;">2. Fake Observation Injected:</span><span style="color:#f87171; font-weight:700;">${timeline.fakeObservationReceived ? new Date(timeline.fakeObservationReceived).toLocaleString() : '-'}</span></div>
-            <div style="display:flex; gap:0.75rem;"><span style="color:#64748b; width:170px;">3. Confirmation Blocked:</span><span style="color:#f87171; font-weight:700;">${timeline.paymentRejected ? new Date(timeline.paymentRejected).toLocaleString() : '-'} (DO NOT PAY)</span></div>
-            <div style="display:flex; gap:0.75rem;"><span style="color:#64748b; width:170px;">4. Customer Identity Banned:</span><span style="color:#f87171; font-weight:700;">${timeline.autoBanExecuted ? new Date(timeline.autoBanExecuted).toLocaleString() : '-'} (AUTO BAN)</span></div>
+            <div style="display:flex; gap:0.75rem;"><span style="color:var(--text-muted); width:170px;">1. Payment Session Created:</span><span style="color:#ffffff;">${timeline.sessionCreated ? new Date(timeline.sessionCreated).toLocaleString() : '-'}</span></div>
+            <div style="display:flex; gap:0.75rem;"><span style="color:var(--text-muted); width:170px;">2. Fake Observation Injected:</span><span style="color:var(--danger); font-weight:700;">${timeline.fakeObservationReceived ? new Date(timeline.fakeObservationReceived).toLocaleString() : '-'}</span></div>
+            <div style="display:flex; gap:0.75rem;"><span style="color:var(--text-muted); width:170px;">3. Confirmation Blocked:</span><span style="color:var(--danger); font-weight:700;">${timeline.paymentRejected ? new Date(timeline.paymentRejected).toLocaleString() : '-'} (DO NOT PAY)</span></div>
+            <div style="display:flex; gap:0.75rem;"><span style="color:var(--text-muted); width:170px;">4. Customer Identity Banned:</span><span style="color:var(--danger); font-weight:700;">${timeline.autoBanExecuted ? new Date(timeline.autoBanExecuted).toLocaleString() : '-'} (AUTO BAN)</span></div>
           </div>
         </div>
       `;
       } catch (e) {
-        modalBody.innerHTML = `<div style="text-align:center; padding:2rem; color:#f87171;">⚠️ Error retrieving ban details: ${escapeHtml(e.message)}</div>`;
+        modalBody.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--danger);">⚠️ Error retrieving ban details: ${escapeHtml(e.message)}</div>`;
       }
     }
 
@@ -7480,14 +7669,14 @@
           else if (e.eventType === 'MANUAL_BAN') eventBadge = '<span class="badge badge-warning">MANUAL_BAN</span>';
 
           return `
-          <tr style="border-bottom:1px solid #1e293b;">
-            <td style="color:#94a3b8; font-size:0.8rem;">${time}</td>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="color:var(--text-muted); font-size:0.8rem;">${time}</td>
             <td>${eventBadge}</td>
-            <td><code style="color:#cbd5e1; font-size:0.75rem;">${escapeHtml(e.customerId || '-')}</code></td>
+            <td><code style="color:var(--text); font-size:0.75rem;">${escapeHtml(e.customerId || '-')}</code></td>
             <td><span class="badge badge-secondary" style="font-size:0.7rem;">${escapeHtml(e.source || 'SMS')}</span></td>
-            <td style="color:#38bdf8; font-family:monospace; font-size:0.8rem;">${escapeHtml(e.sender || '-')}</td>
-            <td style="color:#f87171; font-size:0.8rem;">${escapeHtml(e.fraudReason || '-')}</td>
-            <td><code style="color:#fca5a5; font-size:0.75rem; background:#020617; padding:2px 6px; border-radius:4px;">${escapeHtml(rawSnippet)}</code></td>
+            <td style="color:var(--info); font-family:monospace; font-size:0.8rem;">${escapeHtml(e.sender || '-')}</td>
+            <td style="color:var(--danger); font-size:0.8rem;">${escapeHtml(e.fraudReason || '-')}</td>
+            <td><code style="color:var(--danger); font-size:0.75rem; background:var(--bg-input); padding:2px 6px; border-radius:4px;">${escapeHtml(rawSnippet)}</code></td>
             <td style="text-align:right;">
               ${e.customerId ? `<button class="btn btn-secondary" style="padding:0.25rem 0.5rem; font-size:0.75rem;" onclick="viewBanDetails(${jsArg(e.customerId)})">View Dossier</button>` : '-'}
             </td>
@@ -7495,7 +7684,7 @@
         `;
         }).join('');
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#f87171; padding:1.5rem;">⚠️ Failed to load events: ${escapeHtml(e.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--danger); padding:1.5rem;">⚠️ Failed to load events: ${escapeHtml(e.message)}</td></tr>`;
       }
     }
 
@@ -7525,19 +7714,187 @@
           else if (l.action === 'CUSTOMER_MANUALLY_BANNED') actionBadge = '<span class="badge badge-warning">MANUAL_BAN</span>';
 
           return `
-          <tr style="border-bottom:1px solid #1e293b;">
-            <td style="color:#94a3b8; font-size:0.8rem;">${time}</td>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="color:var(--text-muted); font-size:0.8rem;">${time}</td>
             <td>${actionBadge}</td>
-            <td style="color:#cbd5e1; font-size:0.82rem;">${escapeHtml(l.actorId || l.actorType || 'SYSTEM')}</td>
-            <td><code style="color:#38bdf8; font-size:0.75rem;">${escapeHtml(l.entityId || '-')}</code></td>
-            <td style="color:#cbd5e1; font-size:0.75rem; font-family:monospace; max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(detailsStr)}">
+            <td style="color:var(--text); font-size:0.82rem;">${escapeHtml(l.actorId || l.actorType || 'SYSTEM')}</td>
+            <td><code style="color:var(--info); font-size:0.75rem;">${escapeHtml(l.entityId || '-')}</code></td>
+            <td style="color:var(--text); font-size:0.75rem; font-family:monospace; max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(detailsStr)}">
               ${escapeHtml(detailsStr)}
             </td>
           </tr>
         `;
         }).join('');
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#f87171; padding:1.5rem;">⚠️ Failed to load history: ${escapeHtml(e.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--danger); padding:1.5rem;">⚠️ Failed to load history: ${escapeHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    // --- MERCHANT MANAGEMENT & CREDENTIALS ---
+    let merchantsList = [];
+
+    async function fetchMerchantsList() {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/admin/merchants`);
+        if (!res.ok) return;
+        const data = await res.json();
+        merchantsList = data.merchants || [];
+        renderMerchantSelector();
+      } catch (err) {
+        console.warn('[Admin] Failed to fetch merchants list:', err);
+      }
+    }
+
+    function renderMerchantSelector() {
+      const sel = document.getElementById('headerMerchantSelector');
+      if (!sel) return;
+      if (merchantsList.length === 0) {
+        sel.innerHTML = `<option value="${escapeHtml(currentMerchantId)}">Default Store</option>`;
+        return;
+      }
+      sel.innerHTML = merchantsList.map(m => `
+        <option value="${escapeHtml(m.id)}" ${m.id === currentMerchantId ? 'selected' : ''}>
+          ${escapeHtml(m.businessName || 'Store')} (${escapeHtml(m.id.substring(0, 8))}...)
+        </option>
+      `).join('');
+    }
+
+    async function onMerchantSwitch(merchantId) {
+      if (!merchantId || merchantId === currentMerchantId) return;
+      currentMerchantId = merchantId;
+      showAdminToast(`Switched store context.`, true);
+      await loadMerchantSettings();
+      renderMerchantCredentials();
+    }
+
+    function renderMerchantCredentials(mData = null) {
+      const idEl = document.getElementById('settingDisplayMerchantId');
+      const keyEl = document.getElementById('settingDisplayApiKey');
+      const snippetEl = document.getElementById('settingIntegrationSnippet');
+      if (idEl) idEl.value = currentMerchantId || '';
+
+      const currentM = merchantsList.find(m => m.id === currentMerchantId);
+      const host = window.location.origin;
+      const snippet = `<script src="${host}/youpi.js" data-youpi-key="${currentMerchantId}"></script>`;
+      if (snippetEl) snippetEl.value = snippet;
+
+      if (keyEl) {
+        if (mData && mData.apiKey) {
+          keyEl.value = mData.apiKey;
+        } else if (currentM && currentM.apiKeyConfigured) {
+          keyEl.value = 'yp_live_••••••••••••••••';
+        } else {
+          keyEl.value = currentMerchantId;
+        }
+      }
+    }
+
+    function openNewMerchantModal() {
+      const modal = document.getElementById('newMerchantModal');
+      if (modal) modal.hidden = false;
+      const nameInp = document.getElementById('modalMerchantName');
+      if (nameInp) { nameInp.value = ''; nameInp.focus(); }
+      const slugInp = document.getElementById('modalMerchantSlug');
+      if (slugInp) slugInp.value = '';
+      const vpaInp = document.getElementById('modalMerchantVpa');
+      if (vpaInp) vpaInp.value = '';
+      const emailInp = document.getElementById('modalMerchantEmail');
+      if (emailInp) emailInp.value = '';
+      const phoneInp = document.getElementById('modalMerchantPhone');
+      if (phoneInp) phoneInp.value = '';
+      const hookInp = document.getElementById('modalMerchantWebhook');
+      if (hookInp) hookInp.value = '';
+    }
+
+    function closeNewMerchantModal() {
+      const modal = document.getElementById('newMerchantModal');
+      if (modal) modal.hidden = true;
+    }
+
+    function syncModalSlug(val) {
+      const slugInp = document.getElementById('modalMerchantSlug');
+      if (slugInp && !slugInp.dataset.manual) {
+        slugInp.value = String(val || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      }
+    }
+
+    async function submitNewMerchant() {
+      const name = document.getElementById('modalMerchantName')?.value?.trim();
+      if (!name) {
+        showAdminToast('Store / Business Name is required.', false);
+        return;
+      }
+      const slug = document.getElementById('modalMerchantSlug')?.value?.trim() || undefined;
+      const vpa = document.getElementById('modalMerchantVpa')?.value?.trim() || undefined;
+      const contactEmail = document.getElementById('modalMerchantEmail')?.value?.trim() || '';
+      const contactPhone = document.getElementById('modalMerchantPhone')?.value?.trim() || '';
+      const webhookUrl = document.getElementById('modalMerchantWebhook')?.value?.trim() || undefined;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/admin/merchants`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ businessName: name, slug, vpa, contactEmail, contactPhone, webhookUrl })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showAdminToast(data.error || 'Failed to create merchant.', false);
+          return;
+        }
+
+        closeNewMerchantModal();
+        showAdminToast(`Merchant '${name}' onboarded successfully!`, true);
+        await fetchMerchantsList();
+        currentMerchantId = data.merchant.id;
+        renderMerchantSelector();
+        await loadMerchantSettings();
+        renderMerchantCredentials(data.merchant);
+      } catch (err) {
+        showAdminToast(`Network error: ${err.message}`, false);
+      }
+    }
+
+    async function rotateMerchantApiKey() {
+      if (!confirm('Are you sure you want to rotate this merchant API key? Existing integrations using the old key will need to be updated.')) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/admin/merchants/${encodeURIComponent(currentMerchantId)}/rotate-key`, {
+          method: 'POST'
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showAdminToast(data.error || 'Failed to rotate key.', false);
+          return;
+        }
+        showAdminToast('API key rotated successfully!', true);
+        renderMerchantCredentials(data);
+        await fetchMerchantsList();
+      } catch (err) {
+        showAdminToast(`Error rotating key: ${err.message}`, false);
+      }
+    }
+
+    function copyMerchantId() {
+      const val = document.getElementById('settingDisplayMerchantId')?.value || currentMerchantId;
+      navigator.clipboard?.writeText(val);
+      showAdminToast('Merchant ID copied to clipboard!', true);
+    }
+
+    function copyMerchantApiKey() {
+      const val = document.getElementById('settingDisplayApiKey')?.value;
+      if (!val || val.includes('•')) {
+        navigator.clipboard?.writeText(currentMerchantId);
+        showAdminToast('Merchant ID copied as public key!', true);
+      } else {
+        navigator.clipboard?.writeText(val);
+        showAdminToast('API key copied to clipboard!', true);
+      }
+    }
+
+    function copyIntegrationSnippet() {
+      const val = document.getElementById('settingIntegrationSnippet')?.value;
+      if (val) {
+        navigator.clipboard?.writeText(val);
+        showAdminToast('Script snippet copied to clipboard!', true);
       }
     }
 
@@ -7555,6 +7912,7 @@
       }
     });
 
+    fetchMerchantsList();
     fetchGatewaySettings();
     fetchObserversStatus();
     fetchWhatsAppStatus();

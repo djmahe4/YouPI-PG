@@ -88,11 +88,11 @@ describe('Android Payment Observer Integration Tests', () => {
     assert.equal(res.body.accepted, true);
     assert.equal(res.body.attribution.attributed, true);
     assert.equal(res.body.attribution.paymentSessionId, session.id);
-    assert.equal(res.body.attribution.outcomeStatus, PaymentStatus.SUCCESS);
+    assert.equal(res.body.attribution.outcomeStatus, PaymentStatus.OBSERVED_SUCCESS);
 
     // 3. Verify session in DB updated to SUCCESS
     const updated = apiInstance.app.context.sessionRepo.findById(session.id);
-    assert.equal(updated.status, PaymentStatus.SUCCESS);
+    assert.equal(updated.status, PaymentStatus.OBSERVED_SUCCESS);
   });
 
   test('Issue #61: rejects notification observation when rawNotification has missing or empty package', async () => {
@@ -119,5 +119,58 @@ describe('Android Payment Observer Integration Tests', () => {
 
     assert.equal(resUntrusted.status, 400);
     assert.match(resUntrusted.body.error, /Untrusted Android notification package/);
+  });
+
+  test('submits observation with clientMessageId and returns it in response', async () => {
+    const clientMsgId = 'msg-uuid-999-client';
+    const res = await driver.submitObservation({
+      amount: '150.00',
+      receivingAccountId: '00000000-0000-0000-0000-000000000002',
+      utr: 'UTR-MSG-112233',
+      clientMessageId: clientMsgId,
+      notificationText: 'Payment of ₹150 received via UPI'
+    });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.accepted, true);
+    assert.equal(res.body.clientMessageId, clientMsgId);
+  });
+
+  test('submits raw bank SMS with clientMessageId and processes through pipeline', async () => {
+    const clientMsgId = 'sms-uuid-777-client';
+    const res = await driver.submitSms({
+      sender: 'VK-HDFCBK',
+      body: 'Dear Customer, INR 500.00 credited to your A/C ending 4321 via UPI Ref 999888777666 on 20-OCT-26.',
+      clientMessageId: clientMsgId
+    });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.accepted, true);
+    assert.equal(res.body.clientMessageId, clientMsgId);
+  });
+
+  test('on-device bank SMS filter logic validates institutional senders and rejects personal numbers', () => {
+    const INSTITUTIONAL_SENDER_PATTERN = /^(?:[A-Za-z]{2}-)?([A-Za-z0-9]{3,9})$/;
+    const NUMERIC_PHONE_PATTERN = /^\+?[0-9]{7,15}$/;
+    const CREDIT_KEYWORD_PATTERN = /(?:credited|received|deposit(?:ed)?|payment\s+received|transferred\s+to\s+your|has\s+transferred|deposited\s+in|cr\b|upi\s+credit)/i;
+    const EXPLICIT_DEBIT_PATTERN = /(?:debited\b|spent\s+on|paid\s+to|withdrawn\s+from|dr\b|payment\s+sent)/i;
+
+    // Test institutional senders
+    assert.ok(INSTITUTIONAL_SENDER_PATTERN.test('VK-HDFCBK'));
+    assert.ok(INSTITUTIONAL_SENDER_PATTERN.test('AD-SBIINB'));
+    assert.ok(INSTITUTIONAL_SENDER_PATTERN.test('BZ-ICICIB'));
+    assert.ok(INSTITUTIONAL_SENDER_PATTERN.test('VM-AXISBK'));
+    assert.ok(INSTITUTIONAL_SENDER_PATTERN.test('HDFCBK'));
+
+    // Test rejection of personal phone numbers
+    assert.ok(NUMERIC_PHONE_PATTERN.test('+919876543210'));
+    assert.ok(NUMERIC_PHONE_PATTERN.test('9876543210'));
+    assert.ok(NUMERIC_PHONE_PATTERN.test('+14155552671'));
+
+    // Test credit vs debit intent
+    const creditSms = 'INR 500.00 credited to your A/C ending 4321 via UPI';
+    const debitSms = 'INR 500.00 debited from your A/C ending 4321 towards Amazon';
+    assert.ok(CREDIT_KEYWORD_PATTERN.test(creditSms));
+    assert.ok(EXPLICIT_DEBIT_PATTERN.test(debitSms));
   });
 });

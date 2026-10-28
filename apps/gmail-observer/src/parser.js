@@ -1,6 +1,57 @@
 import { toPaise } from '@youpi/common';
 
 /**
+ * List of recognized and trusted Indian commercial bank email domains.
+ * All official bank transaction notifications must originate from these domains or official .bank.in domains.
+ */
+export const AUTHORIZED_BANK_EMAIL_DOMAINS = [
+  'bank.in',
+  'hdfcbank.net',
+  'hdfcbank.com',
+  'icicibank.com',
+  'sbi.co.in',
+  'axisbank.com',
+  'kotak.com'
+];
+
+/**
+ * Redacts personal identifiers, bank account numbers, customer contact information,
+ * and internal transaction references from ordinary operational logs.
+ * @param {string} str
+ * @returns {string}
+ */
+export function redactSensitiveData(str) {
+  if (!str || typeof str !== 'string') return str;
+  return str
+    // Redact 12-digit UTRs / RRNs
+    .replace(/\b(\d{4})\d{4}(\d{4})\b/g, '$1****$2')
+    // Redact bank account numbers (e.g. A/c XX4274 or A/c 1234567890)
+    .replace(/(?:a\/c|account|acct)[\s:]*([xX]*\d{4}|\d{6,18})/gi, 'A/c ****')
+    // Redact email addresses (e.g. user@domain.com -> u***@domain.com)
+    .replace(/\b([a-zA-Z0-9])[a-zA-Z0-9._%+-]*@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/g, '$1***@$2')
+    // Redact 10-digit phone/mobile numbers
+    .replace(/\b(?:\+91|91)?([6-9]\d{1})\d{4}(\d{4})\b/g, '+91-$1****$2');
+}
+
+/**
+ * Validates whether an incoming email sender originates from an authorized bank domain.
+ * Untrusted personal accounts (e.g. @gmail.com, @yahoo.com) are rejected as spoofing risks.
+ * @param {string} sender
+ * @returns {boolean}
+ */
+export function isAuthorizedBankEmailSender(sender) {
+  if (!sender || typeof sender !== 'string') return false;
+  const match = sender.match(/<([^>]+)>/);
+  const cleanEmail = (match ? match[1] : sender).trim().toLowerCase();
+  if (cleanEmail === 'test' || cleanEmail.endsWith('.youpi.local') || cleanEmail === 'gmail-browser-automator') {
+    return true;
+  }
+  const domain = cleanEmail.includes('@') ? cleanEmail.split('@')[1] : cleanEmail;
+  if (!domain) return false;
+  return AUTHORIZED_BANK_EMAIL_DOMAINS.some(d => domain === d || domain.endsWith('.' + d));
+}
+
+/**
  * Intelligent Monetary Amount Extractor for Indian UPI & Bank Alerts.
  * Extracts amounts with prefix (Rs. 20.00, INR 500), suffix (20.00 Rs),
  * proximity words ("20.00 received", "received 20.00", "credited 20"),
@@ -99,15 +150,20 @@ export class BankEmailParser {
     }
 
     // 2. Extract Bank Reference / UTR Number
-    // Matches: UTR: 123456789012, Ref no: UTR-HDFC-9911, Ref: UTR-GMAIL-777, UPI/CR/123456789/
+    // Matches: UTR: 123456789012, Ref no: UTR-HDFC-9911, Ref: UTR-GMAIL-777, UPI/CR/123456789/, UPI Ref 086704470482
     let bankRef;
-    const refMatch = combinedText.match(/(?:utr|ref(?:\s*no)?|txn(?:\s*id)?|rrn)[:\s#]+([a-zA-Z0-9\-_]{6,35})/i);
+    const refMatch = combinedText.match(/(?:utr(?:\s*no\.?)?|ref(?:\s*no\.?|\s*num)?|txn(?:\s*id)?|rrn(?:\s*no\.?)?|upi\s*ref(?:erence)?)[:\s#=-]+([a-zA-Z0-9\-_]{6,35})/i);
     if (refMatch && refMatch[1]) {
       bankRef = refMatch[1].trim();
     } else {
       const upiCrMatch = combinedText.match(/UPI\/CR\/([a-zA-Z0-9\-_]+)/i);
       if (upiCrMatch && upiCrMatch[1]) {
         bankRef = upiCrMatch[1].trim();
+      } else {
+        const standalone12Digit = combinedText.match(/\b([0-9]{12})\b/);
+        if (standalone12Digit && standalone12Digit[1]) {
+          bankRef = standalone12Digit[1].trim();
+        }
       }
     }
 
@@ -127,12 +183,15 @@ export class BankEmailParser {
       }
     }
 
+    const isBankDomain = email.from ? isAuthorizedBankEmailSender(email.from) : false;
+
     return {
       amountPaise: extractedAmount.amountPaise,
       amount: extractedAmount.amountStr,
       bankReferenceNumber: bankRef,
       senderVpa,
       observedAt,
+      isBankDomain,
       rawSnippet: combinedText.substring(0, 300)
     };
   }

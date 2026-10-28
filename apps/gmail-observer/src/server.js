@@ -2,6 +2,20 @@ import http from 'node:http';
 import { hasBearer, getObserverToken, getAdminToken, createOAuthState, consumeOAuthState, resolveGmailRedirectUri } from '@youpi/common';
 import { GmailPoller } from './gmail-poller.js';
 import { GmailBrowserAutomator } from './browser-automator.js';
+import { redactSensitiveData } from './parser.js';
+
+const controlRateLimitMap = new Map();
+function checkControlRateLimit(clientIp, maxAllowed = 10, windowMs = 60000) {
+  const now = Date.now();
+  const history = (controlRateLimitMap.get(clientIp) || []).filter(ts => now - ts < windowMs);
+  if (history.length >= maxAllowed) {
+    controlRateLimitMap.set(clientIp, history);
+    return false;
+  }
+  history.push(now);
+  controlRateLimitMap.set(clientIp, history);
+  return true;
+}
 
 export class GmailObserverServer {
   /**
@@ -34,30 +48,77 @@ export class GmailObserverServer {
 
       // GET /health
       if (pathname === '/health') {
+        const poller = this.poller;
+        const status = poller.lifecycleState === 'DEGRADED' ? 'DEGRADED' : 'UP';
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
-          status: 'UP',
+          status,
           service: 'gmail-observer',
-          isRunning: this.poller.isRunning,
-          lastPollAt: this.poller.lastPollAt,
-          observedCount: this.poller.observedCount
+          isRunning: poller.isRunning,
+          lifecycleState: poller.lifecycleState,
+          degradedReason: poller.degradedReason,
+          receivingAccountConfigured: Boolean(poller.receivingAccountId),
+          oauthConfigured: Boolean(poller.credentials?.refreshToken),
+          connectedEmail: poller.credentials?.connectedEmail ? redactSensitiveData(poller.credentials.connectedEmail) : null,
+          lastPollAt: poller.lastPollAt,
+          observedCount: poller.observedCount,
+          lastBootCheckAt: poller.lastBootCheckAt
         }));
         return;
       }
 
-      // POST /stop
-      // This service is published publicly (Google must reach /oauth/callback), so stopping the
-      // poller must not be reachable by an anonymous caller: it silently disables the bank-email
-      // verification channel and prevents live payments from settling.
-      if (pathname === '/stop' && method === 'POST') {
+      // POST /start or POST /control/start
+      if ((pathname === '/start' || pathname === '/control/start') && method === 'POST') {
         if (!hasBearer(req, getObserverToken(), getAdminToken())) {
           res.writeHead(401, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Unauthorized', code: 'AUTH_REQUIRED' }));
           return;
         }
+
+        const clientIp = req.socket?.remoteAddress || '127.0.0.1';
+        if (!checkControlRateLimit(clientIp)) {
+          res.writeHead(429, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Too many requests. Please try again later.', code: 'RATE_LIMITED' }));
+          return;
+        }
+
+        console.log(`[Gmail Observer Control] Operator triggered start lifecycle from ${clientIp}`);
+        const result = await this.poller.startBootLifecycle();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: result.success,
+          lifecycleState: this.poller.lifecycleState,
+          reason: this.poller.degradedReason,
+          isRunning: this.poller.isRunning
+        }));
+        return;
+      }
+
+      // POST /stop or POST /control/stop
+      if ((pathname === '/stop' || pathname === '/control/stop') && method === 'POST') {
+        if (!hasBearer(req, getObserverToken(), getAdminToken())) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Unauthorized', code: 'AUTH_REQUIRED' }));
+          return;
+        }
+
+        const clientIp = req.socket?.remoteAddress || '127.0.0.1';
+        if (!checkControlRateLimit(clientIp)) {
+          res.writeHead(429, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Too many requests. Please try again later.', code: 'RATE_LIMITED' }));
+          return;
+        }
+
+        console.log(`[Gmail Observer Control] Operator stopped poller from ${clientIp}`);
         this.poller.stop();
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, message: 'Gmail poller stopped' }));
+        res.end(JSON.stringify({
+          success: true,
+          message: 'Gmail poller stopped',
+          lifecycleState: 'STOPPED',
+          isRunning: false
+        }));
         return;
       }
 
@@ -71,7 +132,8 @@ export class GmailObserverServer {
         }
         let clientId = '';
         let configuredRedirectUri = '';
-        const apiBase = this.poller.apiBaseUrl || `http://127.0.0.1:${process.env.PAYMENT_API_PORT || 6100}`;
+        const isLocalhost = process.env.YOUPI_MODE === 'localhost' || !process.env.YOUPI_MODE || this.poller.apiBaseUrl?.includes('vvisa.in') || this.poller.apiBaseUrl?.includes('gauravtesting.online');
+        const apiBase = isLocalhost ? `http://127.0.0.1:${process.env.PAYMENT_API_PORT || 6100}` : (this.poller.apiBaseUrl || `http://127.0.0.1:${process.env.PAYMENT_API_PORT || 6100}`);
         try {
           const credRes = await fetch(`${apiBase}/api/v1/admin/gmail/credentials`, { headers: { Authorization: `Bearer ${getObserverToken()}` } });
           if (credRes.ok) {
@@ -127,7 +189,8 @@ export class GmailObserverServer {
           let clientId = '';
           let clientSecret = '';
           let callbackRedirectUri = '';
-          const apiBase = this.poller.apiBaseUrl || `http://127.0.0.1:${process.env.PAYMENT_API_PORT || 6100}`;
+          const isLocalhost = process.env.YOUPI_MODE === 'localhost' || !process.env.YOUPI_MODE || this.poller.apiBaseUrl?.includes('vvisa.in') || this.poller.apiBaseUrl?.includes('gauravtesting.online');
+          const apiBase = isLocalhost ? `http://127.0.0.1:${process.env.PAYMENT_API_PORT || 6100}` : (this.poller.apiBaseUrl || `http://127.0.0.1:${process.env.PAYMENT_API_PORT || 6100}`);
 
           try {
             const credRes = await fetch(`${apiBase}/api/v1/admin/gmail/credentials`, { headers: { Authorization: `Bearer ${getObserverToken()}` } });

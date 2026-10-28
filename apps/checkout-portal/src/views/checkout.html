@@ -19,11 +19,8 @@
 
     <!-- include:partials/header.html -->
 
-    <!-- 3. SCROLLABLE BODY -->
-    <div class="ypg-body">
-      <!-- include:partials/auth.html -->
-      <!-- include:partials/payment-methods.html -->
-    </div>
+    <!-- include:partials/auth.html -->
+    <!-- include:partials/payment-methods.html -->
 
     <!-- include:partials/footer.html -->
 
@@ -278,6 +275,10 @@
 
     // Retry / Close on Expired or Failed session
     function handleRetryNewPayment() {
+      if (typeof handleEndAndStartNewPayment === 'function') {
+        handleEndAndStartNewPayment();
+        return;
+      }
       const failRedirectUrl = getFailedRedirectUrl();
       const orderId = state?.orderId || '';
       const reason = state?.status || 'FAILED';
@@ -395,17 +396,17 @@
             html += `
               <div class="saved-account-row ${isActive ? 'active' : ''}" onclick="handleSelectSavedAccount('${acc.id}', event)">
                 <div style="display:flex; align-items:center; gap:8px;">
-                  <div style="width:28px; height:28px; border-radius:50%; background:#e0f2fe; color:#0369a1; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center;">${initial}</div>
+                  <div style="width:28px; height:28px; border-radius:50%; background:#e0f2fe; color:var(--ypg-hc-info, #0369a1); font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center;">${initial}</div>
                   <div>
                     <div style="font-size:13px; font-weight:700;">${escapeHtml(acc.name)}</div>
-                    <div style="font-size:11px; color:#64748b;">${escapeHtml(acc.email || '')} ${acc.mobileNumber ? '&bull; ' + escapeHtml(acc.mobileNumber) : ''}</div>
+                    <div style="font-size:11px; color:var(--ypg-text-muted);">${escapeHtml(acc.email || '')} ${acc.mobileNumber ? '&bull; ' + escapeHtml(acc.mobileNumber) : ''}</div>
                   </div>
                 </div>
                 <div style="display:flex; align-items:center; gap:6px;">
                   <button type="button" class="ypg-btn-select-account" style="background:#eff6ff; border:1px solid #bfdbfe; color:var(--ypg-blue); font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:2px; transition:all 0.15s;" onclick="handleSelectSavedAccount('${acc.id}', event)">
                     <span>Select</span> &rsaquo;
                   </button>
-                  <button type="button" style="background:none; border:none; color:#94a3b8; font-size:14px; cursor:pointer; padding:2px 6px;" onclick="removeRememberedAccount('${acc.id}', event)" title="Remove Account">✕</button>
+                  <button type="button" style="background:none; border:none; color:var(--ypg-hc-text-faint, #94a3b8); font-size:14px; cursor:pointer; padding:2px 6px;" onclick="removeRememberedAccount('${acc.id}', event)" title="Remove Account">✕</button>
                 </div>
               </div>
             `;
@@ -1504,9 +1505,55 @@
       }
     }
 
+    // High contrast follows the device's "increase contrast" setting. The
+    // checkout-hc theme in checkout.css carries the colours; the merchant colour
+    // is set inline, so it is darkened here until white text on it reaches 7:1.
+    const contrastQuery = window.matchMedia ? window.matchMedia('(prefers-contrast: more)') : null;
+    let lastBranding = null;
+
+    function isHighContrast() {
+      return !!(contrastQuery && contrastQuery.matches);
+    }
+
+    function applyContrastPreference() {
+      if (isHighContrast()) document.documentElement.setAttribute('data-theme', 'checkout-hc');
+      else document.documentElement.removeAttribute('data-theme');
+    }
+
+    function contrastWithWhite(col) {
+      let hex = String(col).replace('#', '');
+      if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+      if (!/^[0-9a-f]{6}$/i.test(hex)) return null;
+      const lin = (v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+      const [r, g, b] = [0, 2, 4].map((i) => lin(parseInt(hex.slice(i, i + 2), 16) / 255));
+      return 1.05 / (0.2126 * r + 0.7152 * g + 0.0722 * b + 0.05);
+    }
+
+    function darkenToContrast(col, ratio) {
+      let out = col;
+      for (let i = 0; i < 40; i++) {
+        const c = contrastWithWhite(out);
+        if (c === null || c >= ratio) return out;
+        out = adjustHexColor(out, -8);
+      }
+      return out;
+    }
+
+    applyContrastPreference();
+    if (contrastQuery) {
+      const onContrastChange = () => {
+        applyContrastPreference();
+        if (lastBranding) applyDynamicTheme(lastBranding);
+      };
+      if (contrastQuery.addEventListener) contrastQuery.addEventListener('change', onContrastChange);
+      else if (contrastQuery.addListener) contrastQuery.addListener(onContrastChange);
+    }
+
     function applyDynamicTheme(branding) {
       if (!branding) return;
-      const primary = branding.primaryColor || '#0b63e5';
+      lastBranding = branding;
+      let primary = branding.primaryColor || '#0b63e5';
+      if (isHighContrast()) primary = darkenToContrast(primary, 7);
       const darkPrimary = adjustHexColor(primary, -25);
       const root = document.documentElement;
 
@@ -1857,7 +1904,7 @@
       }
 
       // --- 2. TERMINAL PAYMENT STATES (TERMINAL & OVER) ---
-      if (['SUCCESS', 'CANCELLED', 'EXPIRED', 'FAILED'].includes(data.status)) {
+      if (['SUCCESS', 'OBSERVED_SUCCESS', 'RECONCILED', 'MANUAL_REVIEW', 'CANCELLED', 'EXPIRED', 'FAILED'].includes(data.status)) {
         if (queuePollTimer) { clearInterval(queuePollTimer); queuePollTimer = null; }
         if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
         setGatewayAuthMode(false);
@@ -1928,12 +1975,32 @@
           const btnAction = document.getElementById('btnFailedAction');
           if (btnAction) {
             btnAction.textContent = isExpired ? 'Start New Payment' : 'Try Again';
-            btnAction.onclick = () => retryNewPayment();
+            btnAction.onclick = () => handleRetryNewPayment();
           }
           return;
         }
 
-        if (data.status === 'SUCCESS') {
+        if (data.status === 'MANUAL_REVIEW') {
+          closeProcessingModal();
+          closeCancelPaymentModal();
+          const bar = document.getElementById('paymentMethodSelectorBar');
+          if (bar) bar.style.display = 'none';
+          hideAllContent();
+          const failedView = document.getElementById('viewFailedContent');
+          if (failedView) failedView.hidden = false;
+          const footer = document.getElementById('ypgStickyFooter');
+          if (footer) footer.style.display = 'none';
+          const titleEl = document.getElementById('failedTitleText');
+          if (titleEl) titleEl.textContent = 'Payment held for review';
+          const descEl = document.getElementById('failedDescriptionText');
+          if (descEl) descEl.textContent = 'This alert matched more than one payment, or it was flagged. It is not confirmed and no order should be fulfilled yet.';
+          try {
+            postToMerchant({ event: 'youpi.payment_manual_review', data: data });
+          } catch (e) { }
+          return;
+        }
+
+        if (data.status === 'SUCCESS' || data.status === 'OBSERVED_SUCCESS' || data.status === 'RECONCILED') {
           closeProcessingModal();
           closeCancelPaymentModal();
           const bar = document.getElementById('paymentMethodSelectorBar');
@@ -1960,28 +2027,51 @@
               codApiBox.style.display = 'block';
               codApiUrl.textContent = `${API_BASE}/api/v1/orders/${data.orderId}/cod`;
             }
+          } else if (data.status === 'OBSERVED_SUCCESS') {
+            if (titleEl) titleEl.textContent = 'Payment observed';
+            if (descEl) descEl.textContent = 'A bank alert matched this payment. It is not confirmed against a bank statement yet.';
+            if (codApiBox) codApiBox.style.display = 'none';
+          } else if (data.status === 'RECONCILED') {
+            if (titleEl) titleEl.textContent = 'Payment reconciled';
+            if (descEl) descEl.textContent = 'This payment was matched to a bank statement.';
+            if (codApiBox) codApiBox.style.display = 'none';
           } else {
             if (titleEl) titleEl.textContent = 'Payment Successful!';
-            if (descEl) descEl.textContent = 'Your payment was automatically verified by YouPI PG banking observers.';
+            const activeAppName = state?.branding?.appName || '{{APP_NAME}}' || 'YouPI PG';
+            if (descEl) descEl.textContent = `Your payment was automatically verified by ${activeAppName} banking observers.`;
             if (codApiBox) codApiBox.style.display = 'none';
           }
 
-          emitTriggerHook('PAYMENT_COMPLETED', { amount: data.amount, method: data.method, isCod: isCodOrder });
+          emitTriggerHook('PAYMENT_COMPLETED', { amount: data.amount, method: data.method, isCod: isCodOrder, status: data.status });
 
           try {
+            const merchantEvent = data.status === 'OBSERVED_SUCCESS'
+              ? 'youpi.payment_observed'
+              : (data.status === 'RECONCILED' ? 'youpi.payment_reconciled' : 'youpi.payment_success');
             postToMerchant({
-              event: 'youpi.payment_success',
+              event: merchantEvent,
               data: data
             });
           } catch (e) { }
 
+          const effectiveReturnUrl = data.returnUrl || state?.returnUrl || null;
           const btnReturn = document.getElementById('btnReturnStore') || document.getElementById('btnReturnToStore');
-          const safeReturnUrl = sanitizeRedirectUrl(data.returnUrl);
-          if (btnReturn && safeReturnUrl) {
-            btnReturn.hidden = false;
-            btnReturn.href = safeReturnUrl;
-            if (window.parent === window) {
-              setTimeout(() => { window.location.href = safeReturnUrl; }, 2000);
+          if (effectiveReturnUrl) {
+            const safeReturn = sanitizeRedirectUrl(effectiveReturnUrl);
+            if (safeReturn) {
+              if (btnReturn) {
+                btnReturn.hidden = false;
+                btnReturn.href = safeReturn;
+                btnReturn.textContent = 'Return to Store (Redirecting in 2s...)';
+              }
+              if (descEl && !descEl.textContent.includes('Redirecting')) {
+                descEl.textContent += ' Redirecting to merchant store...';
+              }
+              if (window.parent === window) {
+                setTimeout(() => { window.location.href = safeReturn; }, 2000);
+              }
+            } else if (btnReturn) {
+              btnReturn.hidden = true;
             }
           } else if (btnReturn) {
             btnReturn.hidden = true;
@@ -1999,6 +2089,9 @@
           if (window.isAutoBindingSession || !PAYMENT_ID || !token || !customerId) return;
           window.isAutoBindingSession = true;
           try {
+            if (!DeviceIdentity.deviceId || !DeviceIdentity.deviceToken) {
+              await DeviceIdentity.getOrRegister();
+            }
             const res = await fetch(`${API_BASE}/api/v1/checkout/${PAYMENT_ID}/bind-customer`, {
               method: 'POST',
               headers: getApiHeaders({
@@ -2028,18 +2121,27 @@
       }
 
       // 3. Pre-Gateway Customer Authentication Gate (Preserves identity up to 1 week)
+      const preserved = getPreservedIdentity();
+      if (preserved && preserved.token && !activeToken) {
+        activeToken = preserved.token;
+      }
       if (data.customer) {
         activeCustomer = data.customer;
-      } else if (!activeCustomer) {
-        const preserved = getPreservedIdentity();
-        if (preserved && preserved.customer) {
-          activeCustomer = preserved.customer;
-          activeToken = preserved.token || activeToken;
-        }
+      } else if (!activeCustomer && preserved && preserved.customer) {
+        activeCustomer = preserved.customer;
       }
-      const hasCustomer = Boolean(data.customer || activeCustomer);
+      const hasCustomer = Boolean(
+        (data.customer || activeCustomer) &&
+        (data.status !== 'INITIATED' || Boolean(activeToken))
+      );
 
       if (!hasCustomer) {
+        if (data.customer && data.customer.phone) {
+          const mobInput = document.getElementById('authMobileInput');
+          if (mobInput && !mobInput.value) {
+            mobInput.value = String(data.customer.phone).replace(/\D/g, '').slice(-10);
+          }
+        }
         setGatewayAuthMode(true);
         const stepMob = document.getElementById('authStepMobile');
         const isAlreadyOnMobile = stepMob && !stepMob.hidden;
@@ -2092,7 +2194,7 @@
         queuePollTimer = null;
       }
 
-      if (data.status === 'ACTIVE' || (data.status === 'INITIATED' && (data.timeRemainingSeconds > 0 || data.expiresAt))) {
+      if (data.status === 'ACTIVE' || data.status === 'INITIATED') {
         renderMethodSelectorBar(data);
 
         hideAllContent();
@@ -2260,18 +2362,27 @@
     async function loadQrSvg() {
       const container = document.getElementById('qrImageContainer');
       if (!container) return;
-      try {
-        const res = await fetch(`/checkout/${PAYMENT_ID}/qr.svg`);
-        if (res.ok) {
-          const svg = await res.text();
-          if (svg && svg.includes('<svg')) {
-            container.innerHTML = svg;
-            return;
-          }
-        }
-      } catch (e) {
-        console.warn('loadQrSvg error:', e);
+
+      const candidates = [`/checkout/${PAYMENT_ID}/qr.svg`];
+      if (API_BASE && typeof API_BASE === 'string' && API_BASE.startsWith('http')) {
+        candidates.push(`${API_BASE}/checkout/${PAYMENT_ID}/qr.svg`);
       }
+
+      for (const targetUrl of candidates) {
+        try {
+          const res = await fetch(targetUrl);
+          if (res.ok) {
+            const svg = await res.text();
+            if (svg && svg.includes('<svg')) {
+              container.innerHTML = svg;
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('loadQrSvg error from:', targetUrl, e);
+        }
+      }
+
       // Automatic retry to guarantee QR code is loaded
       setTimeout(async () => {
         try {
@@ -2284,6 +2395,57 @@
           }
         } catch (e) {}
       }, 400);
+    }
+
+    function sanitizeUpiUri(raw) {
+      if (typeof raw !== 'string') return null;
+      const trimmed = raw.trim();
+      if (!trimmed.toLowerCase().startsWith('upi://pay?')) return null;
+      // Allow only valid URI characters for upi:// scheme to prevent injection
+      if (!/^upi:\/\/pay\?[a-zA-Z0-9_\-\.\=\&\%\+\:\@\/]*$/i.test(trimmed)) return null;
+      return trimmed;
+    }
+
+    function getUpiIntentUri() {
+      if (state && typeof state.upiUri === 'string') {
+        const sanitized = sanitizeUpiUri(state.upiUri);
+        if (sanitized) return sanitized;
+      }
+      const vpa = encodeURIComponent(String(state?.payeeVpa || state?.vpa || 'merchant@upi').trim());
+      const name = encodeURIComponent(String(state?.merchantName || 'Store').trim());
+      const amt = encodeURIComponent(String(state?.amount || '10.00').trim());
+      const tid = encodeURIComponent(String(PAYMENT_ID || '').trim());
+      return sanitizeUpiUri(`upi://pay?pa=${vpa}&pn=${name}&am=${amt}&tn=${tid}`);
+    }
+
+    function handleOpenUpiIntent() {
+      const uri = getUpiIntentUri();
+      if (!uri) return;
+      try {
+        window.location.assign(uri);
+      } catch (err) {
+        console.warn('Could not launch UPI intent:', err);
+      }
+    }
+
+    function handleUpiAppClick(appName) {
+      const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (window.innerWidth <= 767);
+      if (isMobileDevice) {
+        handleOpenUpiIntent();
+        return;
+      }
+      // On desktop (macOS / Windows / Linux), copy VPA and show informative toast
+      const vpa = (state?.payeeVpa || state?.vpa || '').trim();
+      if (vpa) {
+        try {
+          navigator.clipboard.writeText(vpa);
+          showOptionToast(`Copied UPI ID (${vpa})! Open ${appName} on your phone to complete payment.`);
+        } catch {
+          showOptionToast(`Scan QR with ${appName} on your phone to pay ₹${state?.amount || ''}`);
+        }
+      } else {
+        showOptionToast(`Scan QR with ${appName} on your phone to pay ₹${state?.amount || ''}`);
+      }
     }
 
     function copyVpaId() {
@@ -2596,7 +2758,7 @@
     }
 
     async function handleEndAndStartNewPayment() {
-      const btn = document.getElementById('btnEndAndRestartPayment');
+      const btn = document.getElementById('btnEndAndRestartPayment') || document.getElementById('btnFailedAction');
       if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<span class="ypg-spinner" style="display:inline-block;width:15px;height:15px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:rzpRotate 0.8s linear infinite;margin-right:8px;vertical-align:middle;"></span> CREATING NEW PAYMENT...';
@@ -2701,7 +2863,7 @@
 
     // Continuous 2-second fallback polling: guarantees instant response when cashier confirms/declines or queues clear
     setInterval(() => {
-      if (state && (state.status === 'SUCCESS' || state.status === 'FAILED' || state.status === 'EXPIRED' || state.status === 'BLOCKED' || state.isBanned)) {
+      if (state && (state.status === 'SUCCESS' || state.status === 'OBSERVED_SUCCESS' || state.status === 'RECONCILED' || state.status === 'MANUAL_REVIEW' || state.status === 'FAILED' || state.status === 'EXPIRED' || state.status === 'BLOCKED' || state.isBanned)) {
         return;
       }
       loadState();

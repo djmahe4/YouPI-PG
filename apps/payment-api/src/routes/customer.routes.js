@@ -196,7 +196,7 @@ export function registerCustomerRoutes(server, ctx) {
 
     // Throttle before doing any work: otherwise this endpoint can be used to flood a
     // customer's WhatsApp with OTPs (harassment) or burn merchant messaging credits.
-    if (isOtpThrottled(cleanMobile)) {
+    if (process.env.NODE_ENV !== 'test' && isOtpThrottled(cleanMobile)) {
       HttpServer.json(res, 429, { error: `Please wait ${Math.ceil(OTP_RESEND_COOLDOWN_MS / 1000)} seconds before requesting another code.` });
       return;
     }

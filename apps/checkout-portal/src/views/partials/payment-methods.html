@@ -56,7 +56,7 @@
                 </div>
                 <div class="ypg-pc-method-sub">Pay cash directly to cashier</div>
                 <div class="ypg-pc-method-icons" style="margin-top:6px;">
-                  <span style="font-size:10.5px; font-weight:700; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:5px; display:inline-flex; align-items:center; gap:4px; border:1px solid #bbf7d0;">
+                  <span style="font-size:10.5px; font-weight:700; color:var(--ypg-hc-success, #15803d); background:#dcfce7; padding:2px 8px; border-radius:5px; display:inline-flex; align-items:center; gap:4px; border:1px solid #bbf7d0;">
                     <img src="/icons/cash.svg" alt="Cash" style="width:12px; height:12px;" />
                     Physical Cash
                   </span>
@@ -66,9 +66,9 @@
               <!-- Card at Counter (Offline Mode) -->
               <div class="ypg-pc-method-card" id="pcMethodCardCard" onclick="selectPaymentMethod('CARD_COUNTER')" style="{{PC_CARD_STYLE}}">
                 <div class="ypg-pc-method-header">
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle; color:#475569;"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px; vertical-align:middle; color:var(--ypg-hc-text-body, #475569);"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                   <div class="ypg-pc-method-title">Card at Counter</div>
-                  <span class="ypg-pc-cash-pill" style="background:#f1f5f9; color:#475569;">POS</span>
+                  <span class="ypg-pc-cash-pill" style="background:#f1f5f9; color:var(--ypg-hc-text-body, #475569);">POS</span>
                 </div>
                 <div class="ypg-pc-method-sub">Swipe or tap card at POS desk</div>
                 <div class="ypg-pc-method-icons" style="gap:5px; margin-top:6px; display:flex; align-items:center;">
@@ -83,11 +83,11 @@
                 <div class="ypg-pc-method-header">
                   <img src="/icons/cash.svg" alt="COD" style="width:16px; height:16px; margin-right:6px; vertical-align:middle;" />
                   <div class="ypg-pc-method-title">Cash on Delivery</div>
-                  <span class="ypg-pc-cash-pill" style="background:#fef3c7; color:#92400e;">COD</span>
+                  <span class="ypg-pc-cash-pill" style="background:#fef3c7; color:var(--ypg-hc-warning, #92400e);">COD</span>
                 </div>
                 <div class="ypg-pc-method-sub">Pay physical cash at doorstep</div>
                 <div class="ypg-pc-method-icons" style="margin-top:6px;">
-                  <span style="font-size:10.5px; font-weight:700; color:#b45309; background:#fef3c7; padding:2px 8px; border-radius:5px; display:inline-flex; align-items:center; gap:4px; border:1px solid #fde68a;">
+                  <span style="font-size:10.5px; font-weight:700; color:var(--ypg-hc-warning, #b45309); background:#fef3c7; padding:2px 8px; border-radius:5px; display:inline-flex; align-items:center; gap:4px; border:1px solid #fde68a;">
                     <img src="/icons/cash.svg" alt="COD" style="width:12px; height:12px;" />
                     Doorstep Cash
                   </span>
@@ -140,7 +140,7 @@
                 <div class="ypg-qr-card-container">
                   <!-- Left: QR Box -->
                   <div class="ypg-qr-image-box" id="qrImageContainer">
-                    <div style="font-size:11px; color:#94a3b8; text-align:center;">Loading QR...</div>
+                    <div style="font-size:11px; color:var(--ypg-hc-text-faint, #94a3b8); text-align:center;">Loading QR...</div>
                   </div>
 
                   <!-- Right: Prompt, UPI App Logos -->
@@ -150,26 +150,32 @@
                     <!-- Brand Logos Row (Zero Fake Offers) -->
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:3px 0 6px 0;">
                       <div class="ypg-upi-logos-row">
-                        <div class="ypg-app-icon" title="Google Pay"><img src="/icons/gpay.png"
+                        <div class="ypg-app-icon" title="Google Pay" role="button" tabindex="0" onclick="handleUpiAppClick('Google Pay')"><img src="/icons/gpay.png"
                             onerror="if(window.FALLBACK_ICONS)this.src=window.FALLBACK_ICONS.gpay" alt="GPay" /></div>
-                        <div class="ypg-app-icon" title="PhonePe"><img src="/icons/phonepe.png"
+                        <div class="ypg-app-icon" title="PhonePe" role="button" tabindex="0" onclick="handleUpiAppClick('PhonePe')"><img src="/icons/phonepe.png"
                             onerror="if(window.FALLBACK_ICONS)this.src=window.FALLBACK_ICONS.phonepe" alt="PhonePe" />
                         </div>
-                        <div class="ypg-app-icon" title="Paytm"><img src="/icons/paytm.png"
+                        <div class="ypg-app-icon" title="Paytm" role="button" tabindex="0" onclick="handleUpiAppClick('Paytm')"><img src="/icons/paytm.png"
                             onerror="if(window.FALLBACK_ICONS)this.src=window.FALLBACK_ICONS.paytm" alt="Paytm" /></div>
-                        <div class="ypg-app-icon" title="CRED"><img src="/icons/cred.png"
+                        <div class="ypg-app-icon" title="CRED" role="button" tabindex="0" onclick="handleUpiAppClick('CRED')"><img src="/icons/cred.png"
                             onerror="if(window.FALLBACK_ICONS)this.src=window.FALLBACK_ICONS.cred" alt="CRED" /></div>
-                        <div class="ypg-app-icon" title="BHIM UPI"><img src="/icons/bhim.png"
+                        <div class="ypg-app-icon" title="BHIM UPI" role="button" tabindex="0" onclick="handleUpiAppClick('BHIM UPI')"><img src="/icons/bhim.png"
                             onerror="if(window.FALLBACK_ICONS)this.src=window.FALLBACK_ICONS.bhim" alt="BHIM" /></div>
-                        <div class="ypg-app-icon" title="Amazon Pay"><img src="/icons/amazonpay.png"
+                        <div class="ypg-app-icon" title="Amazon Pay" role="button" tabindex="0" onclick="handleUpiAppClick('Amazon Pay')"><img src="/icons/amazonpay.png"
                             onerror="if(window.FALLBACK_ICONS)this.src=window.FALLBACK_ICONS.amazonpay"
                             alt="Amazon Pay" /></div>
                       </div>
                     </div>
 
-                    <div style="font-size:12px; color:#64748b; line-height:1.4;">
+                    <div style="font-size:12px; color:var(--ypg-text-muted); line-height:1.4;">
                       Open any UPI app on your phone to scan and pay directly.
                     </div>
+
+                    <!-- 1-Tap Mobile UPI Intent Launcher (Shown on Mobile, Hidden on PC) -->
+                    <button type="button" class="ypg-btn-upi-mobile-intent" id="btnMobileUpiIntent" onclick="handleOpenUpiIntent()">
+                      <img src="/icons/upi.svg" alt="UPI" style="height:14px; filter:brightness(0) invert(1);" />
+                      <span>Pay via Any UPI App</span>
+                    </button>
                   </div>
                 </div>
                 <!-- UPI Payment Instructions Guide -->
@@ -209,10 +215,10 @@
                     <div class="ypg-offer-icon-badge" style="background:#d97706; color:#fff; display:flex; align-items:center; justify-content:center;">
                       <img src="/icons/cash.svg" alt="Cash" style="width:14px; height:14px;" />
                     </div>
-                    <span style="color:#92400e; font-weight:700;">Pay Cash at Doorstep</span>
+                    <span style="color:var(--ypg-hc-warning, #92400e); font-weight:700;">Pay Cash at Doorstep</span>
                   </div>
                   <div class="ypg-offers-right">
-                    <span style="color:#b45309;">Verified Purchase</span>
+                    <span style="color:var(--ypg-hc-warning, #b45309);">Verified Purchase</span>
                   </div>
                 </div>
 
@@ -220,8 +226,8 @@
                 <div
                   style="background:#ffffff; border:1px solid var(--ypg-border); border-radius:12px; padding:16px; margin:14px 0;">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                    <span style="font-size:12px; color:#64748b; font-weight:600;">Payable on Delivery</span>
-                    <strong style="font-size:20px; font-weight:800; color:#0f172a;">₹{{AMOUNT}}</strong>
+                    <span style="font-size:12px; color:var(--ypg-text-muted); font-weight:600;">Payable on Delivery</span>
+                    <strong style="font-size:20px; font-weight:800; color:var(--ypg-text-dark);">₹{{AMOUNT}}</strong>
                   </div>
                   <div
                     style="font-size:12px; color:#334155; line-height:1.5; border-top:1px dashed var(--ypg-border); padding-top:10px;">
@@ -261,34 +267,34 @@
                 <div
                   style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px; margin:14px 0; text-align:center;">
                   <div
-                    style="font-size:12px; font-weight:700; color:#166534; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">
+                    style="font-size:12px; font-weight:700; color:var(--ypg-hc-success, #166534); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">
                     Amount Payable to Cashier</div>
-                  <div style="font-size:28px; font-weight:800; color:#15803d;">₹{{AMOUNT}}</div>
+                  <div style="font-size:28px; font-weight:800; color:var(--ypg-hc-success, #15803d);">₹{{AMOUNT}}</div>
 
                   <!-- Prominent Cashier Order ID Display -->
                   <div
                     style="margin-top:12px; padding-top:10px; border-top:1px dashed #86efac; display:flex; align-items:center; justify-content:center; gap:8px;">
-                    <span style="font-size:12px; font-weight:700; color:#166534;">Store Order ID:</span>
+                    <span style="font-size:12px; font-weight:700; color:var(--ypg-hc-success, #166534);">Store Order ID:</span>
                     <span class="cashierOrderIdDisplay"
-                      style="font-family:monospace; font-size:14.5px; font-weight:900; color:#0f172a; background:#ffffff; padding:3px 10px; border-radius:6px; border:1.5px solid #86efac; letter-spacing:0.5px;">#{{ORDER_ID}}</span>
+                      style="font-family:monospace; font-size:14.5px; font-weight:900; color:var(--ypg-text-dark); background:#ffffff; padding:3px 10px; border-radius:6px; border:1.5px solid #86efac; letter-spacing:0.5px;">#{{ORDER_ID}}</span>
                   </div>
                 </div>
 
                 <!-- Counter Desk Instructions -->
                 <div class="ypg-instructions-card">
-                  <div style="font-size:12.5px; font-weight:700; color:#0f172a; margin-bottom:8px;">Counter Desk
+                  <div style="font-size:12.5px; font-weight:700; color:var(--ypg-text-dark); margin-bottom:8px;">Counter Desk
                     Instructions</div>
-                  <p style="font-size:12px; color:#475569; line-height:1.5; margin:0;" id="cashCounterDeskNotice">
+                  <p style="font-size:12px; color:var(--ypg-hc-text-body, #475569); line-height:1.5; margin:0;" id="cashCounterDeskNotice">
                     {{COUNTER_INSTRUCTIONS}}
                   </p>
                 </div>
 
-                <div class="ypg-live-observer-strip" style="background:#eff6ff; border-color:#bfdbfe; color:#1e40af;">
+                <div class="ypg-live-observer-strip" style="background:#eff6ff; border-color:#bfdbfe; color:var(--ypg-hc-info, #1e40af);">
                   <div class="ypg-radar-dot" style="background:#2563eb; box-shadow:0 0 0 0 rgba(37,99,235,0.7);"></div>
                   <span>Awaiting Cashier Confirmation at Billing Desk...</span>
                 </div>
 
-                <div style="font-size:12px; color:#64748b; text-align:center; padding:8px;">
+                <div style="font-size:12px; color:var(--ypg-text-muted); text-align:center; padding:8px;">
                   Present this screen and Order ID to the cashier. Your payment will automatically update once confirmed
                   by staff.
                 </div>
@@ -304,37 +310,37 @@
                 </div>
 
                 <div
-                  style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px; margin:14px 0; text-align:center;">
+                  style="background:#f8fafc; border:1px solid var(--ypg-border); border-radius:12px; padding:16px; margin:14px 0; text-align:center;">
                   <div
-                    style="font-size:12px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">
+                    style="font-size:12px; font-weight:700; color:var(--ypg-hc-text-body, #475569); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">
                     POS Terminal Charge</div>
-                  <div style="font-size:28px; font-weight:800; color:#0f172a;">₹{{AMOUNT}}</div>
+                  <div style="font-size:28px; font-weight:800; color:var(--ypg-text-dark);">₹{{AMOUNT}}</div>
 
                   <!-- Prominent Cashier Order ID Display -->
                   <div
-                    style="margin-top:12px; padding-top:10px; border-top:1px dashed #cbd5e1; display:flex; align-items:center; justify-content:center; gap:8px;">
-                    <span style="font-size:12px; font-weight:700; color:#475569;">Store Order ID:</span>
+                    style="margin-top:12px; padding-top:10px; border-top:1px dashed var(--ypg-input-border); display:flex; align-items:center; justify-content:center; gap:8px;">
+                    <span style="font-size:12px; font-weight:700; color:var(--ypg-hc-text-body, #475569);">Store Order ID:</span>
                     <span class="cashierOrderIdDisplay"
-                      style="font-family:monospace; font-size:14.5px; font-weight:900; color:#0f172a; background:#ffffff; padding:3px 10px; border-radius:6px; border:1.5px solid #cbd5e1; letter-spacing:0.5px;">#{{ORDER_ID}}</span>
+                      style="font-family:monospace; font-size:14.5px; font-weight:900; color:var(--ypg-text-dark); background:#ffffff; padding:3px 10px; border-radius:6px; border:1.5px solid var(--ypg-input-border); letter-spacing:0.5px;">#{{ORDER_ID}}</span>
                   </div>
                 </div>
 
                 <!-- Counter Desk Instructions -->
                 <div class="ypg-instructions-card">
-                  <div style="font-size:12.5px; font-weight:700; color:#0f172a; margin-bottom:8px;">POS Terminal
+                  <div style="font-size:12.5px; font-weight:700; color:var(--ypg-text-dark); margin-bottom:8px;">POS Terminal
                     Instructions</div>
-                  <p style="font-size:12px; color:#475569; line-height:1.5; margin:0;" id="cardCounterDeskNotice">
+                  <p style="font-size:12px; color:var(--ypg-hc-text-body, #475569); line-height:1.5; margin:0;" id="cardCounterDeskNotice">
                     Please swipe, insert, or tap your credit or debit card on the store POS terminal at the billing
                     desk.
                   </p>
                 </div>
 
-                <div class="ypg-live-observer-strip" style="background:#eff6ff; border-color:#bfdbfe; color:#1e40af;">
+                <div class="ypg-live-observer-strip" style="background:#eff6ff; border-color:#bfdbfe; color:var(--ypg-hc-info, #1e40af);">
                   <div class="ypg-radar-dot" style="background:#2563eb; box-shadow:0 0 0 0 rgba(37,99,235,0.7);"></div>
                   <span>Awaiting Cashier Slip Verification...</span>
                 </div>
 
-                <div style="font-size:12px; color:#64748b; text-align:center; padding:8px;">
+                <div style="font-size:12px; color:var(--ypg-text-muted); text-align:center; padding:8px;">
                   Present this screen and Order ID to the cashier. Cashier will verify transaction and approve this
                   checkout session.
                 </div>
@@ -346,12 +352,12 @@
                 <div id="queueTimeSavingBanner" class="ypg-time-saving-banner" style="display:none;"></div>
 
                 <div class="ypg-queue-container">
-                  <div style="font-size:16px; font-weight:800; color:#1e3a8a;">You Are In Line for Payment</div>
+                  <div style="font-size:16px; font-weight:800; color:var(--ypg-hc-info, #1e3a8a);">You Are In Line for Payment</div>
                   <div class="ypg-queue-number" id="queueNumberDisplay">#1</div>
                   <div style="font-size:13px; font-weight:700; color:#2563eb;">
                     Estimated Wait: <span id="queueTimerText">00:30</span>
                   </div>
-                  <div style="font-size:12px; color:#475569; margin-top:8px; line-height:1.4;">
+                  <div style="font-size:12px; color:var(--ypg-hc-text-body, #475569); margin-top:8px; line-height:1.4;">
                     Your payment slot is reserved. You will be activated automatically the moment the current
                     transaction finishes.
                   </div>
@@ -377,7 +383,7 @@
                       </div>
                     </div>
                   </div>
-                  <div style="font-size:12px; color:#64748b; margin-top:8px;">
+                  <div style="font-size:12px; color:var(--ypg-text-muted); margin-top:8px;">
                     Bank verification in progress (<span id="procTimerText">30s</span>)
                   </div>
                   <button type="button" class="rzp-sheet-cancel-btn" onclick="openCancelPaymentModal()"
@@ -396,10 +402,10 @@
                   <div class="ypg-success-title" id="successTitleText">Payment Successful!</div>
                   <div class="ypg-success-amount" id="successAmountVal">₹{{AMOUNT}}</div>
                   <div style="font-size:12px; color:var(--ypg-text-muted); margin-bottom:14px;" id="successDescText">
-                    Your payment was automatically verified by YouPI PG banking observers.
+                    Your payment was automatically verified by {{APP_NAME}} banking observers.
                   </div>
                   <div id="successCodDevApiBox"
-                    style="display:none; font-size:11.5px; background:#f1f5f9; padding:10px 14px; border-radius:8px; margin-bottom:14px; text-align:left; border:1px solid #e2e8f0;">
+                    style="display:none; font-size:11.5px; background:#f1f5f9; padding:10px 14px; border-radius:8px; margin-bottom:14px; text-align:left; border:1px solid var(--ypg-border);">
                     <span style="font-weight:700; color:#334155;">Developer Order API:</span>
                     <div
                       style="word-break:break-all; font-family:monospace; color:#2563eb; margin-top:3px; font-size:11px;"
@@ -469,7 +475,7 @@
                     <span class="ypg-blocked-details-label">Session ID:</span>
                     <span class="ypg-blocked-details-val" id="blockedSessionIdVal">-</span>
                     <span class="ypg-blocked-details-label">Status:</span>
-                    <span class="ypg-blocked-details-val" style="color:#ef4444; font-weight:800;">ACCOUNT BLOCKED</span>
+                    <span class="ypg-blocked-details-val" style="color:var(--ypg-hc-danger, #ef4444); font-weight:800;">ACCOUNT BLOCKED</span>
                     <span class="ypg-blocked-details-label">Timestamp:</span>
                     <span class="ypg-blocked-details-val" id="blockedTimestampVal">-</span>
                   </div>
@@ -478,7 +484,7 @@
                     <button type="button" class="ypg-btn-blocked-exit" onclick="handleBlockedExit()">
                       <span>Return to Merchant Store</span>
                     </button>
-                    <button type="button" onclick="openHelpModal()" style="background:none; border:none; color:#64748b; font-size:12px; font-weight:600; cursor:pointer; text-decoration:underline; padding:6px;">
+                    <button type="button" onclick="openHelpModal()" style="background:none; border:none; color:var(--ypg-text-muted); font-size:12px; font-weight:600; cursor:pointer; text-decoration:underline; padding:6px;">
                       Need help? View Security Case Reference
                     </button>
                   </div>
@@ -505,10 +511,10 @@
                   <div class="ypg-duplicate-subtitle" id="dupSessionSubtitleText">Payment Session Active on Another Device</div>
                   
                   <div class="ypg-duplicate-card">
-                    <p class="ypg-duplicate-desc" style="font-weight:700; color:#0f172a; margin-bottom:6px;">
+                    <p class="ypg-duplicate-desc" style="font-weight:700; color:var(--ypg-text-dark); margin-bottom:6px;">
                       This payment session was created on another device.
                     </p>
-                    <p class="ypg-duplicate-desc" style="color:#64748b; font-size:12.5px;">
+                    <p class="ypg-duplicate-desc" style="color:var(--ypg-text-muted); font-size:12.5px;">
                       For security reasons, this session cannot be continued from this device.
                     </p>
                   </div>
@@ -523,4 +529,5 @@
             </div>
 
           </div>
+        </div>
       </main>

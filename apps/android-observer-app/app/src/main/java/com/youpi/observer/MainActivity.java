@@ -66,7 +66,7 @@ public class MainActivity extends Activity {
 
         // Header Title
         TextView tvTitle = new TextView(this);
-        tvTitle.setText("YOUPI SMS Gateway");
+        tvTitle.setText("Mitto Pay SMS Gateway");
         tvTitle.setTextColor(Color.WHITE);
         tvTitle.setTextSize(22f);
         tvTitle.setTypeface(null, Typeface.BOLD);
@@ -320,6 +320,46 @@ public class MainActivity extends Activity {
     }
 
     private void checkAndPromptRuntimePermissions() {
+        android.content.SharedPreferences prefs = getSharedPreferences("mittopay_gateway_prefs", MODE_PRIVATE);
+        boolean disclosureAccepted = prefs.getBoolean("prominent_disclosure_accepted", false);
+
+        if (!disclosureAccepted && (checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED ||
+                                   checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED)) {
+            showProminentDisclosureDialog();
+            return;
+        }
+
+        promptPermissionsActual();
+    }
+
+    private void showProminentDisclosureDialog() {
+        new android.app.AlertDialog.Builder(this)
+            .setTitle("Mitto Pay — Sensitive Permissions Notice")
+            .setMessage("Mitto Pay SMS Gateway requires SMS access (RECEIVE_SMS, READ_SMS) strictly to detect inbound bank credit and UPI alerts for real-time payment reconciliation.\n\n"
+                      + "• On-Device Filtering: All personal, promotional, or non-banking SMS are discarded directly on this phone and are never transmitted.\n"
+                      + "• Data Minimization: Only alerts from official financial institution sender codes (e.g., VK-HDFCBK, SBIINB, AXISBK) are processed.\n"
+                      + "• Security: Data is transmitted over encrypted TLS authenticated with HMAC-SHA256 to your configured merchant gateway.\n\n"
+                      + "Do you consent to enable banking SMS monitoring on this device?")
+            .setPositiveButton("Consent & Continue", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    getSharedPreferences("mittopay_gateway_prefs", MODE_PRIVATE).edit()
+                        .putBoolean("prominent_disclosure_accepted", true)
+                        .apply();
+                    promptPermissionsActual();
+                }
+            })
+            .setNegativeButton("Decline", new android.content.DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(android.content.DialogInterface dialog, int which) {
+                    Toast.makeText(MainActivity.this, "SMS permissions declined. The observer cannot capture banking alerts until granted.", Toast.LENGTH_LONG).show();
+                }
+            })
+            .setCancelable(false)
+            .show();
+    }
+
+    private void promptPermissionsActual() {
         List<String> perms = new ArrayList<>();
 
         if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED) {

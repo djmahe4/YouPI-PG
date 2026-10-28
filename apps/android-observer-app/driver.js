@@ -78,6 +78,7 @@ export class AndroidObserverDriver {
 
     const bodyObj = {
       deviceId: this.deviceId,
+      clientMessageId: obs.clientMessageId,
       receivingAccountId: obs.receivingAccountId || '00000000-0000-0000-0000-000000000002',
       amount: obs.amount,
       amountPaise: obs.amountPaise !== undefined ? obs.amountPaise.toString() : undefined,
@@ -123,6 +124,61 @@ export class AndroidObserverDriver {
   /**
    * Submits heartbeat to backend.
    */
+
+  /**
+   * Submits a signed raw bank SMS observation to backend.
+   * @param {{
+   *   sender: string,
+   *   body: string,
+   *   clientMessageId?: string,
+   *   timestampOverride?: number
+   * }} sms
+   */
+  async submitSms(sms) {
+    if (!this.deviceId || !this.signingKey) {
+      throw new Error('Device must be paired before submitting SMS.');
+    }
+
+    const url = `${this.apiBaseUrl}/api/v1/observers/sms`;
+    const timestamp = (sms.timestampOverride !== undefined ? sms.timestampOverride : Date.now()).toString();
+
+    const bodyObj = {
+      deviceId: this.deviceId,
+      clientMessageId: sms.clientMessageId,
+      sender: sms.sender || 'VK-HDFCBK',
+      body: sms.body,
+      timestamp: Number(timestamp)
+    };
+
+    const bodyString = JSON.stringify(bodyObj);
+    const sigPayload = `${bodyString}:${timestamp}`;
+    const signature = generateHmac(sigPayload, this.signingKey);
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Device-Id': this.deviceId,
+        'X-Timestamp': timestamp,
+        'X-Signature': signature
+      },
+      body: bodyString
+    });
+
+    const respText = await res.text();
+    let respJson;
+    try {
+      respJson = JSON.parse(respText);
+    } catch {
+      respJson = { raw: respText };
+    }
+
+    return {
+      status: res.status,
+      body: respJson
+    };
+  }
+
   async sendHeartbeat() {
     if (!this.deviceId) throw new Error('Cannot send heartbeat: device not paired.');
     const url = `${this.apiBaseUrl}/api/v1/pollers/android/heartbeat`;

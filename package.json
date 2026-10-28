@@ -29,8 +29,13 @@
     "typescript": "^7.0.2"
   },
   "engines": {
-    "node": ">=24.0.0"
+    "node": ">=24.22.1"
   },
   "author": "Antigravity Systems",
-  "license": "Commercial"
+  "license": "Commercial",
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true,
+    "protobufjs@8.8.1": true,
+    "protobufjs@7.6.6": true
+  }
 }

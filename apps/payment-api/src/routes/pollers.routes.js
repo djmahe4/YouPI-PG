@@ -38,14 +38,72 @@ export function registerPollerRoutes(server, ctx) {
       HttpServer.json(res, 401, { error: 'Unauthorized', code: 'AUTH_REQUIRED' });
       return;
     }
+
+    // Android Observer Device Authentication for active-window queries
+    const deviceId = req.headers['x-device-id'];
+    let deviceMerchantId = null;
+    let deviceAccountId = null;
+    if (deviceId) {
+      const device = ctx.db.queryOne('SELECT * FROM android_devices WHERE id = ? AND is_active = 1', [deviceId]);
+      if (!device) {
+        HttpServer.json(res, 403, { error: 'Device not authorized or inactive.', code: 'DEVICE_UNAUTHORIZED' });
+        return;
+      }
+      deviceMerchantId = device.merchant_id;
+      const activeAcc = ctx.accountRepo
+        ? ctx.accountRepo.findActiveForMerchant(device.merchant_id)
+        : ctx.db.queryOne('SELECT id FROM payment_receiving_accounts WHERE merchant_id = ? AND is_active = 1 LIMIT 1', [device.merchant_id]);
+      if (activeAcc) deviceAccountId = activeAcc.id || activeAcc.receiving_account_id || activeAcc.account_id;
+    }
+
+    // receivingAccountId is mandatory for observer queries (no public fallback / no oracle enumeration)
+    // Exception: when a valid Android observer device is bound, it auto-binds to the device's account
+    const requestedAccountId = req.query.receivingAccountId;
+    if (!requestedAccountId && !deviceAccountId) {
+      HttpServer.json(res, 400, { error: 'receivingAccountId is required for observer queries.', code: 'ACCOUNT_BINDING_REQUIRED' });
+      return;
+    }
+
+    const requestedMerchantId = req.query.merchantId;
+
+    // Cross-account spoofing protection: registered device may only query its own merchant's account
+    if (deviceAccountId && requestedAccountId && requestedAccountId !== deviceAccountId) {
+      HttpServer.json(res, 403, { error: 'Cross-account access forbidden.', code: 'CROSS_ACCOUNT_FORBIDDEN' });
+      return;
+    }
+
+    // Merchant-account binding validation: receiving account must exist and match specified merchant
+    if (requestedAccountId) {
+      const accRow = ctx.db.queryOne(
+        'SELECT merchant_id FROM payment_receiving_accounts WHERE id = ? AND is_active = 1',
+        [requestedAccountId]
+      );
+      if (!accRow) {
+        HttpServer.json(res, 403, { error: 'Invalid receiving account.', code: 'INVALID_RECEIVING_ACCOUNT' });
+        return;
+      }
+      if (requestedMerchantId && accRow.merchant_id !== requestedMerchantId) {
+        HttpServer.json(res, 403, { error: 'Merchant-account mismatch.', code: 'MERCHANT_ACCOUNT_MISMATCH' });
+        return;
+      }
+    }
+
+    // Determine the account filter: query param takes precedence, then device binding
+    const filterAccountId = requestedAccountId || deviceAccountId;
+    let accountFilter = '';
+    if (filterAccountId) {
+      accountFilter = `AND receiving_account_id = ?`;
+    }
     const sixtySecsAgo = new Date(Date.now() - 60000).toISOString();
+    const queryParams = filterAccountId ? [sixtySecsAgo, filterAccountId] : [sixtySecsAgo];
     const activeSessions = ctx.db.query(`
       SELECT id, order_id, receiving_account_id, amount_paise, status, verification_level, expires_at, processing_expires_at, completed_at
       FROM payment_sessions
-      WHERE status IN ('ACTIVE', 'PROCESSING')
-         OR (status = 'SUCCESS' AND verification_level < 2 AND completed_at >= ?)
+      WHERE (status IN ('ACTIVE', 'PROCESSING')
+         OR (status = 'SUCCESS' AND verification_level < 2 AND completed_at >= ?))
+      ${accountFilter}
       ORDER BY created_at DESC
-    `, [sixtySecsAgo]);
+    `, queryParams);
 
     const sessions = activeSessions.map(s => ({
       id: s.id,
@@ -61,7 +119,9 @@ export function registerPollerRoutes(server, ctx) {
 
     HttpServer.json(res, 200, {
       hasActivePayment: sessions.length > 0,
-      sessions
+      sessions,
+      receivingAccountId: filterAccountId || null,
+      merchantId: deviceMerchantId || null
     });
   });
 
@@ -69,9 +129,59 @@ export function registerPollerRoutes(server, ctx) {
   server.post('/api/v1/pollers/events', async (req, res) => {
     const body = await HttpServer.parseBody(req);
 
-    if (!body.receivingAccountId || !body.source) {
-      HttpServer.json(res, 400, { error: 'Missing required fields: receivingAccountId and source.' });
+    // Android Observer Device Authentication for observation ingest
+    const deviceId = req.headers['x-device-id'];
+    let deviceMerchantId = null;
+    let deviceAccountId = null;
+    if (deviceId) {
+      const device = ctx.db.queryOne('SELECT * FROM android_devices WHERE id = ? AND is_active = 1', [deviceId]);
+      if (!device) {
+        HttpServer.json(res, 403, { error: 'Device not authorized or inactive.', code: 'DEVICE_UNAUTHORIZED' });
+        return;
+      }
+      const activeAcc = ctx.accountRepo
+        ? ctx.accountRepo.findActiveForMerchant(device.merchant_id)
+        : ctx.db.queryOne('SELECT id FROM payment_receiving_accounts WHERE merchant_id = ? AND is_active = 1 LIMIT 1', [device.merchant_id]);
+      if (activeAcc) deviceAccountId = activeAcc.id || activeAcc.receiving_account_id || activeAcc.account_id;
+    }
+
+    if (!body.receivingAccountId && !deviceAccountId) {
+      HttpServer.json(res, 400, { error: 'Missing required field: receivingAccountId (or bind a device).' });
       return;
+    }
+    if (!body.source) {
+      HttpServer.json(res, 400, { error: 'Missing required field: source.' });
+      return;
+    }
+
+    // Cross-account spoofing protection: registered device may only submit for its own merchant's account
+    const requestedAccountId = body.receivingAccountId;
+    const requestedMerchantId = req.headers['x-merchant-id'] || body.merchantId;
+    if (deviceAccountId && requestedAccountId && requestedAccountId !== deviceAccountId) {
+      const accRow = ctx.db.queryOne(
+        'SELECT merchant_id FROM payment_receiving_accounts WHERE id = ? AND is_active = 1',
+        [requestedAccountId]
+      );
+      if (accRow && accRow.merchant_id !== deviceMerchantId) {
+        HttpServer.json(res, 403, { error: 'Cross-account access forbidden.', code: 'CROSS_ACCOUNT_FORBIDDEN' });
+        return;
+      }
+    }
+
+    // Merchant-account binding validation: receiving account must exist and match specified merchant
+    if (requestedAccountId) {
+      const accRow = ctx.db.queryOne(
+        'SELECT merchant_id FROM payment_receiving_accounts WHERE id = ? AND is_active = 1',
+        [requestedAccountId]
+      );
+      if (!accRow) {
+        HttpServer.json(res, 403, { error: 'Invalid receiving account.', code: 'INVALID_RECEIVING_ACCOUNT' });
+        return;
+      }
+      if (requestedMerchantId && accRow.merchant_id !== requestedMerchantId) {
+        HttpServer.json(res, 403, { error: 'Merchant-account mismatch.', code: 'MERCHANT_ACCOUNT_MISMATCH' });
+        return;
+      }
     }
 
     // Evaluate through Security & Fraud Verification Pipeline

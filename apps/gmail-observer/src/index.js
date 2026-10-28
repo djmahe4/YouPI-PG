@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GmailObserverServer } from './server.js';
 import { GmailPoller } from './gmail-poller.js';
+import { redactSensitiveData } from './parser.js';
 
 export function startGmailObserver(port = null, options = {}) {
   const finalPort = port || Number(process.env.GMAIL_OBSERVER_PORT || 6003);
@@ -17,9 +18,15 @@ export function startGmailObserver(port = null, options = {}) {
   return new Promise(resolve => {
     const instance = rawServer.listen(finalPort, bindHost, () => {
       console.log(`[Gmail Observer] Service listening on port ${finalPort}`);
+      if (options.autoBoot !== false) {
+        poller.bootPromise = poller.startBootLifecycle().catch(err => {
+          console.warn('[Gmail Observer] Boot lifecycle check deferred:', redactSensitiveData(err.message));
+        });
+      }
       resolve({
         poller,
         port: finalPort,
+        bootPromise: poller.bootPromise,
         close: () => new Promise(cb => {
           poller.stop();
           instance.close(cb);

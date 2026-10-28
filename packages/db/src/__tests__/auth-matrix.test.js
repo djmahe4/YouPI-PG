@@ -408,7 +408,7 @@ test('Full 53-Point Customer Identity, Authentication & Payment Invariant Matrix
     });
     assert.equal(obs.attributed, true);
     assert.equal(obs.paymentSessionId, unauthPayment.paymentId);
-    assert.equal(obs.outcomeStatus, PaymentStatus.SUCCESS);
+    assert.equal(obs.outcomeStatus, PaymentStatus.OBSERVED_SUCCESS);
 
     // --- DEMO STORE (37 - 40) ---
     // 37 & 38. Demo Purchase redirects without storefront auth
@@ -547,7 +547,7 @@ test('Full 53-Point Customer Identity, Authentication & Payment Invariant Matrix
     assert.equal(dashSettings.body.businessName, 'Nova Commerce Ltd');
 
     // 52. Observer services work
-    const pollerActive = await httpReq('GET', `${apiBase}/api/v1/pollers/active-window`);
+    const pollerActive = await httpReq('GET', `${apiBase}/api/v1/pollers/active-window?receivingAccountId=${receivingAccount.id}`, null, authHeadersFor('/api/v1/pollers/active-window'));
     assert.equal(pollerActive.status, 200);
     assert.ok(Array.isArray(pollerActive.body.sessions));
 

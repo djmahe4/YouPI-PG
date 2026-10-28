@@ -19,8 +19,9 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 public class ApiClient {
-    private static final String TAG = "YoupiApiClient";
-    private static final String PREFS_NAME = "youpi_gateway_prefs";
+    private static final String TAG = "MittoPayApiClient";
+    private static final String PREFS_NAME = "mittopay_gateway_prefs";
+    private static final String LEGACY_PREFS_NAME = "youpi_gateway_prefs";
     // Only Cloudflare Quick Tunnel hosts are accepted from discovery, so a bad or tampered
     // discovery document cannot point the observer at an arbitrary server.
     private static final Pattern DISCOVERED_URL_PATTERN = Pattern.compile("^https://[a-z0-9-]+\\.trycloudflare\\.com$");
@@ -33,7 +34,20 @@ public class ApiClient {
 
     public ApiClient(Context context) {
         this.context = context.getApplicationContext();
-        this.prefs = this.context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        SharedPreferences primaryPrefs = this.context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        // Fallback to legacy prefs if already paired prior to Mitto Pay branding
+        if (!primaryPrefs.contains("device_id")) {
+            SharedPreferences legacyPrefs = this.context.getSharedPreferences(LEGACY_PREFS_NAME, Context.MODE_PRIVATE);
+            if (legacyPrefs.contains("device_id")) {
+                primaryPrefs.edit()
+                    .putString("base_url", legacyPrefs.getString("base_url", "http://10.0.2.2:6100"))
+                    .putString("device_id", legacyPrefs.getString("device_id", null))
+                    .putString("signing_key", legacyPrefs.getString("signing_key", null))
+                    .putString("merchant_id", legacyPrefs.getString("merchant_id", null))
+                    .apply();
+            }
+        }
+        this.prefs = primaryPrefs;
     }
 
     public boolean isPaired() {
@@ -90,6 +104,10 @@ public class ApiClient {
     }
 
     public boolean sendSms(String sender, String body, long timestamp) {
+        return sendSms(sender, body, timestamp, null);
+    }
+
+    public boolean sendSms(String sender, String body, long timestamp, String clientMessageId) {
         if (!isPaired()) return false;
 
         String deviceId = prefs.getString("device_id", null);
@@ -99,6 +117,9 @@ public class ApiClient {
             String tsStr = String.valueOf(timestamp > 0 ? timestamp : System.currentTimeMillis());
             JSONObject json = new JSONObject();
             json.put("deviceId", deviceId);
+            if (clientMessageId != null && !clientMessageId.isEmpty()) {
+                json.put("clientMessageId", clientMessageId);
+            }
             json.put("sender", sender != null ? sender : "UNKNOWN");
             json.put("body", body != null ? body : "");
             json.put("timestamp", Long.parseLong(tsStr));
@@ -108,7 +129,7 @@ public class ApiClient {
             String signature = calculateHmacSha256(sigPayload, signingKey);
 
             String response = postToGateway("/api/v1/observers/sms", bodyString, deviceId, tsStr, signature);
-            Log.i(TAG, "SMS dispatched to YouPI Gateway: " + (response != null ? "OK" : "FAILED"));
+            Log.i(TAG, "SMS dispatched to Mitto Pay Gateway: " + (response != null ? "OK" : "FAILED"));
             return response != null;
         } catch (Exception e) {
             Log.e(TAG, "sendSms error: " + e.getMessage(), e);
