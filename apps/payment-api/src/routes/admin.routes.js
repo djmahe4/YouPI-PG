@@ -1802,6 +1802,10 @@ export function registerAdminRoutes(server, ctx) {
 
     const updatedGmail = {
       ...existingGmail,
+      redirectUri:
+      typeof body.redirectUri === "string" && body.redirectUri.trim()
+        ? body.redirectUri.trim()
+        : existingGmail.redirectUri,
       clientId: body.clientId !== undefined && body.clientId.trim() ? body.clientId.trim() : existingGmail.clientId,
       clientSecret: body.clientSecret !== undefined && body.clientSecret.trim() && !body.clientSecret.includes('•') ? body.clientSecret.trim() : existingGmail.clientSecret,
       refreshToken: body.refreshToken !== undefined ? body.refreshToken.trim() : existingGmail.refreshToken,
