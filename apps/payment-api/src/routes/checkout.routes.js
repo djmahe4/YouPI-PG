@@ -175,13 +175,27 @@ export function observerHealthEnforced() {
   return true;
 }
 
+/**
+ * Opt-in for deployments that confirm payments from bank alert EMAILS only (no phone app):
+ * YOUPI_ALLOW_GMAIL_ONLY=true lets the Gmail observer stand in for the SMS observer when
+ * creating a new UPI session. Off by default, because e-mail alerts can arrive later than SMS.
+ * It still requires the Gmail poller to be genuinely running (lifecycle ACTIVE): a stored
+ * refresh token alone, with the poller down or in STANDBY, does not open the gate.
+ */
+export function gmailOnlyAllowed() {
+  return process.env.YOUPI_ALLOW_GMAIL_ONLY === 'true';
+}
+
 export function upiObserversAcceptingPayments(health) {
-  return health?.smsHealthy === true && health?.isFalseNarrative !== true;
+  if (health?.isFalseNarrative === true) return false;
+  if (health?.smsHealthy === true) return true;
+  return gmailOnlyAllowed() && health?.gmailHealthy === true && health?.gmailPollerActive === true;
 }
 
 /**
  * Healthy (WORKING) only when both Gmail and an SMS observer are up.
- * New UPI payments additionally require smsHealthy. Gmail alone does not accept new sessions.
+ * New UPI payments additionally require smsHealthy. Gmail alone does not accept new sessions
+ * unless YOUPI_ALLOW_GMAIL_ONLY=true (see gmailOnlyAllowed).
  */
 export async function checkUpiServerHealth(ctx, enabledMethods = [], sellingMode = 'OFFLINE', merchantId = '00000000-0000-0000-0000-000000000001') {
   // 0. Check False Narrative Dev Switch (Active for 10 minutes from enabling time)
@@ -243,6 +257,7 @@ export async function checkUpiServerHealth(ctx, enabledMethods = [], sellingMode
 
   let smsHealthy = false;
   let gmailHealthy = false;
+  let gmailPollerActive = false;
   let smsReason = 'SMS gateway disconnected';
   let gmailReason = 'Gmail OAuth unconfigured';
 
@@ -298,6 +313,9 @@ export async function checkUpiServerHealth(ctx, enabledMethods = [], sellingMode
           if (data.status === 'UP') {
             pollerActive = true;
           }
+          // /health says UP even in STANDBY (e.g. no receiving account), so the Gmail-only
+          // gate needs the stricter signal: running AND lifecycle ACTIVE.
+          gmailPollerActive = data.status === 'UP' && data.isRunning === true && data.lifecycleState === 'ACTIVE';
         }
       } catch (e) {}
 
@@ -390,6 +408,7 @@ export async function checkUpiServerHealth(ctx, enabledMethods = [], sellingMode
       reason: smsHealthy ? 'SMS observer active, Gmail observer offline' : 'Gmail observer active, SMS observer offline',
       smsHealthy,
       gmailHealthy,
+      gmailPollerActive,
       warning: 'Your payment may go through extra processing seconds.',
       recommendedAlternative: null
     };
